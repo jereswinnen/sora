@@ -49,10 +49,13 @@ const schema = defineSchema({
     }),
 
   // Tags: User-defined labels for organizing content
+  // Uses normalized names for case-insensitive matching while preserving display names
   tags: defineTable({
     userId: v.string(), // Convex Auth user ID
-    name: v.string(),
-    color: v.optional(v.string()),
+    name: v.string(), // Normalized lowercase name for matching
+    displayName: v.string(), // Original case for display
+    count: v.number(), // Number of articles using this tag
+    lastUsedAt: v.number(), // Last time this tag was used
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])

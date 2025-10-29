@@ -58,9 +58,11 @@ function Dashboard() {
 
   // Convex hooks
   const articles = useQuery(api.articles.listArticles, { limit: 50 });
+  const allTags = useQuery(api.tags.getAllTags);
   const saveArticle = useAction(api.articles.saveArticle);
   const deleteArticle = useMutation(api.articles.deleteArticle);
   const addTag = useMutation(api.articles.addTag);
+  const removeTag = useMutation(api.articles.removeTag);
   const updateArticle = useMutation(api.articles.updateArticle);
 
   const handleSaveArticle = async (e: React.FormEvent) => {
@@ -181,8 +183,28 @@ function Dashboard() {
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
                 placeholder="tech, news, important"
+                list="tag-suggestions"
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <datalist id="tag-suggestions">
+                {allTags?.map((tag) => (
+                  <option key={tag._id} value={tag.displayName}>
+                    {tag.displayName} ({tag.count})
+                  </option>
+                ))}
+              </datalist>
+              {allTags && allTags.length > 0 && (
+                <div className="mt-2 text-xs text-gray-600">
+                  <span className="font-medium">Existing tags:</span>{" "}
+                  {allTags.slice(0, 10).map((tag, idx) => (
+                    <span key={tag._id}>
+                      {idx > 0 && ", "}
+                      {tag.displayName} ({tag.count})
+                    </span>
+                  ))}
+                  {allTags.length > 10 && "..."}
+                </div>
+              )}
             </div>
             <button
               type="submit"
@@ -223,9 +245,23 @@ function Dashboard() {
                       {article.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"
+                          className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded flex items-center gap-1"
                         >
                           {tag}
+                          <button
+                            onClick={async () => {
+                              try {
+                                await removeTag({ articleId: article._id, tag });
+                                setSuccess("Tag removed!");
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Failed to remove tag");
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-bold ml-1"
+                            title="Remove tag"
+                          >
+                            ×
+                          </button>
                         </span>
                       ))}
                     </div>
@@ -274,29 +310,49 @@ function Dashboard() {
 
                   {/* Add Tag Input */}
                   {selectedArticleId === article._id && (
-                    <div className="mt-3 flex gap-2">
-                      <input
-                        type="text"
-                        value={newTag}
-                        onChange={(e) => setNewTag(e.target.value)}
-                        placeholder="New tag name"
-                        className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        onClick={handleAddTag}
-                        className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded"
-                      >
-                        Add
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedArticleId(null);
-                          setNewTag("");
-                        }}
-                        className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
-                      >
-                        Cancel
-                      </button>
+                    <div className="mt-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newTag}
+                          onChange={(e) => setNewTag(e.target.value)}
+                          placeholder="New tag name"
+                          list="tag-suggestions-add"
+                          className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <datalist id="tag-suggestions-add">
+                          {allTags?.map((tag) => (
+                            <option key={tag._id} value={tag.displayName}>
+                              {tag.displayName} ({tag.count})
+                            </option>
+                          ))}
+                        </datalist>
+                        <button
+                          onClick={handleAddTag}
+                          className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded"
+                        >
+                          Add
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedArticleId(null);
+                            setNewTag("");
+                          }}
+                          className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {allTags && allTags.length > 0 && (
+                        <div className="mt-2 text-xs text-gray-500">
+                          Suggestions: {allTags.slice(0, 5).map((tag, idx) => (
+                            <span key={tag._id}>
+                              {idx > 0 && ", "}
+                              {tag.displayName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

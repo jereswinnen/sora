@@ -72,6 +72,28 @@ export const saveArticleToDB = mutation({
       throw new Error("Article already saved");
     }
 
+    // Normalize tags
+    const normalizedTags: string[] = [];
+    for (const tag of args.tags) {
+      if (tag.trim()) {
+        // Normalize and create/update tag, get displayName to use
+        const displayName = await ctx.runMutation(api.tags.normalizeAndCreateTag, {
+          tagName: tag,
+        });
+        normalizedTags.push(displayName);
+      }
+    }
+
+    // Remove duplicates (case-insensitive)
+    const uniqueTags = Array.from(
+      new Map(normalizedTags.map((tag) => [tag.toLowerCase(), tag])).values()
+    );
+
+    // Increment tag counts for unique tags
+    for (const tag of uniqueTags) {
+      await ctx.runMutation(api.tags.incrementTagCount, { tagName: tag });
+    }
+
     // Insert article
     const articleId = await ctx.db.insert("articles", {
       userId: userId,
@@ -83,7 +105,7 @@ export const saveArticleToDB = mutation({
       author: args.author,
       publishedAt: args.publishedAt,
       savedAt: Date.now(),
-      tags: args.tags,
+      tags: uniqueTags,
     });
 
     return articleId;
@@ -121,9 +143,12 @@ export const listArticles = query({
       filtered = filtered.filter((a) => (a.archived || false) === args.archived);
     }
 
-    // Filter by tag
+    // Filter by tag (case-insensitive)
     if (args.tag) {
-      filtered = filtered.filter((a) => a.tags.includes(args.tag!));
+      const normalizedFilterTag = args.tag.toLowerCase();
+      filtered = filtered.filter((a) =>
+        a.tags.some((t) => t.toLowerCase() === normalizedFilterTag)
+      );
     }
 
     // Sort by saved date (newest first)
@@ -189,6 +214,11 @@ export const deleteArticle = mutation({
       throw new Error("Unauthorized");
     }
 
+    // Decrement tag counts for all tags on this article
+    for (const tag of article.tags) {
+      await ctx.runMutation(api.tags.decrementTagCount, { tagName: tag });
+    }
+
     // Delete article
     await ctx.db.delete(args.articleId);
 
@@ -222,10 +252,27 @@ export const addTag = mutation({
       throw new Error("Unauthorized");
     }
 
-    // Add tag (avoid duplicates)
-    const tags = [...new Set([...article.tags, args.tag])];
+    // Normalize and create/update tag, get displayName to use
+    const displayName = await ctx.runMutation(api.tags.normalizeAndCreateTag, {
+      tagName: args.tag,
+    });
+
+    // Check if tag already exists (case-insensitive)
+    const tagExists = article.tags.some(
+      (existingTag) => existingTag.toLowerCase() === displayName.toLowerCase()
+    );
+
+    if (tagExists) {
+      throw new Error("Tag already exists on this article");
+    }
+
+    // Add tag
+    const tags = [...article.tags, displayName];
 
     await ctx.db.patch(args.articleId, { tags });
+
+    // Increment tag count
+    await ctx.runMutation(api.tags.incrementTagCount, { tagName: displayName });
 
     return { success: true };
   },
@@ -257,10 +304,22 @@ export const removeTag = mutation({
       throw new Error("Unauthorized");
     }
 
+    // Find the tag to remove (case-insensitive)
+    const tagToRemove = article.tags.find(
+      (t) => t.toLowerCase() === args.tag.toLowerCase()
+    );
+
+    if (!tagToRemove) {
+      throw new Error("Tag not found on this article");
+    }
+
     // Remove tag
-    const tags = article.tags.filter((t) => t !== args.tag);
+    const tags = article.tags.filter((t) => t !== tagToRemove);
 
     await ctx.db.patch(args.articleId, { tags });
+
+    // Decrement tag count
+    await ctx.runMutation(api.tags.decrementTagCount, { tagName: tagToRemove });
 
     return { success: true };
   },
