@@ -1,4 +1,8 @@
 import { ConvexHttpClient } from "convex/browser";
+import { env } from "./env";
 
-// TODO: Validate environment variable
-// TODO: Export configured Convex client
+/**
+ * Centralized Convex HTTP client for making queries and mutations
+ * from API routes and server components
+ */
+export const convex = new ConvexHttpClient(env.NEXT_PUBLIC_CONVEX_URL);
