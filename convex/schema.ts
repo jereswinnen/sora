@@ -23,7 +23,7 @@ const schema = defineSchema({
 
   // Articles: Saved web articles for reading later
   articles: defineTable({
-    userId: v.id("users"),
+    userId: v.string(), // Convex Auth user ID from getUserIdentity().subject
     url: v.string(),
     title: v.string(),
     content: v.string(),
@@ -50,7 +50,7 @@ const schema = defineSchema({
 
   // Tags: User-defined labels for organizing content
   tags: defineTable({
-    userId: v.id("users"),
+    userId: v.string(), // Convex Auth user ID
     name: v.string(),
     color: v.optional(v.string()),
     createdAt: v.number(),
@@ -60,7 +60,7 @@ const schema = defineSchema({
 
   // User preferences and settings
   userPreferences: defineTable({
-    userId: v.id("users"),
+    userId: v.string(), // Convex Auth user ID
     theme: v.optional(v.union(v.literal("light"), v.literal("dark"), v.literal("system"))),
     defaultView: v.optional(v.union(v.literal("grid"), v.literal("list"))),
     autoArchive: v.optional(v.boolean()),
