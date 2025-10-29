@@ -4,44 +4,20 @@ Sora is designed to be extensible. Here's the pattern for adding new content typ
 
 ---
 
-## Architecture Note: Validation
+## Authentication Pattern
 
-Sora uses **two validation approaches** depending on the entry point:
-
-### Convex Functions (Primary Path)
-- **Used by:** Web app (React) and iOS app (Swift) calling Convex directly
-- **Validation:** Convex validators (`v.string()`, `v.object()`, etc.)
-- **Location:** In Convex function definitions (`convex/articles.ts`, etc.)
+**Always use the official Convex Auth API for getting the user ID:**
 
 ```typescript
-// Example: Convex validation
-export const saveBook = mutation({
-  args: {
-    title: v.string(),
-    author: v.optional(v.string()),
-    isbn: v.optional(v.string()),
-    rating: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => { /* ... */ },
-});
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+const userId = await getAuthUserId(ctx);
+if (userId === null) {
+  throw new Error("Not authenticated");
+}
 ```
 
-### Next.js API Routes (External Integrations Only)
-- **Used by:** Webhooks, browser extensions, email forwarding, public API
-- **Validation:** Zod schemas (`src/lib/validation.ts`)
-- **Location:** API routes (`src/app/api/articles/route.ts`, etc.)
-
-```typescript
-// Example: Zod validation (if you add REST endpoints)
-export const SaveBookSchema = z.object({
-  title: z.string().min(1),
-  author: z.string().optional(),
-  isbn: z.string().optional(),
-  rating: z.number().int().min(1).max(5).optional(),
-});
-```
-
-**For adding new content types, use Convex validators** (shown below).
+This returns the stable user document ID (`Id<"users">`), which remains consistent across sessions. Use this `userId` for all database operations.
 
 ---
 
@@ -77,6 +53,7 @@ books: defineTable({
 ```typescript
 import { v } from "convex/values";
 import { action, mutation, query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { api } from "./_generated/api";
 
 // Action - Fetch book metadata from external API (e.g., Google Books)
@@ -100,11 +77,11 @@ export const saveBook = mutation({
     // ...
   },
   handler: async (ctx, args) => {
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
 
     return await ctx.db.insert("books", {
-      userId: userId.subject,
+      userId: userId,
       ...args,
       tags: args.tags || [],
     });
@@ -118,14 +95,14 @@ export const listBooks = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
 
-    let query = ctx.db
+    const books = await ctx.db
       .query("books")
-      .withIndex("by_user", (q) => q.eq("userId", userId.subject));
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
 
-    const books = await query.collect();
     return books.slice(0, args.limit || 50);
   },
 });
@@ -246,14 +223,16 @@ links: defineTable({
 }).index("by_user", ["userId"]),
 
 // 2. convex/links.ts
+import { getAuthUserId } from "@convex-dev/auth/server";
+
 export const saveLink = mutation({
   args: { url: v.string(), title: v.string(), tags: v.optional(v.array(v.string())) },
   handler: async (ctx, args) => {
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
 
     return await ctx.db.insert("links", {
-      userId: userId.subject,
+      userId: userId,
       url: args.url,
       title: args.title,
       tags: args.tags || [],
@@ -265,12 +244,12 @@ export const saveLink = mutation({
 export const listLinks = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
 
     return await ctx.db
       .query("links")
-      .withIndex("by_user", (q) => q.eq("userId", userId.subject))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(args.limit || 50);
   },
@@ -291,16 +270,3 @@ When you add new content types:
 4. **iOS app** - Just rebuild, functions are already live
 
 No API versioning headaches - Convex handles it!
-
----
-
-## FAQ
-
-**Q: What about the existing API routes in `src/app/api/`?**
-A: They're currently unused but kept for future external integrations (webhooks, browser extensions, etc.). If you never need REST endpoints, you can delete them.
-
-**Q: Do I need to update Zod schemas when adding content types?**
-A: No, unless you're adding REST API endpoints. For Convex functions, only define validators in the function `args`.
-
-**Q: Can I use both approaches?**
-A: Yes! Use Convex functions for your apps (web + iOS), and add API routes only when you need external webhook endpoints.

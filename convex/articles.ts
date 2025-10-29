@@ -1,4 +1,5 @@
 import { action, mutation, query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { parseArticle } from "./parser";
@@ -14,9 +15,9 @@ export const saveArticle = action({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args): Promise<Id<"articles">> => {
-    // Get authenticated user
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
@@ -56,15 +57,15 @@ export const saveArticleToDB = mutation({
   },
   handler: async (ctx, args) => {
     // Get authenticated user ID
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
     // Check if article already exists for this user
     const existing = await ctx.db
       .query("articles")
-      .filter((q) => q.and(q.eq(q.field("userId"), userId.subject), q.eq(q.field("url"), args.url)))
+      .filter((q) => q.and(q.eq(q.field("userId"), userId), q.eq(q.field("url"), args.url)))
       .first();
 
     if (existing) {
@@ -73,7 +74,7 @@ export const saveArticleToDB = mutation({
 
     // Insert article
     const articleId = await ctx.db.insert("articles", {
-      userId: userId.subject,
+      userId: userId,
       url: args.url,
       title: args.title,
       content: args.content,
@@ -100,16 +101,16 @@ export const listArticles = query({
     archived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
     // Query articles for this user
     const articles = await ctx.db
       .query("articles")
-      .withIndex("by_user", (q) => q.eq("userId", userId.subject))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     // Apply filters
@@ -142,9 +143,9 @@ export const getArticle = query({
     articleId: v.id("articles"),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
@@ -155,7 +156,7 @@ export const getArticle = query({
     }
 
     // Check ownership
-    if (article.userId !== userId.subject) {
+    if (article.userId !== userId) {
       throw new Error("Unauthorized");
     }
 
@@ -171,9 +172,9 @@ export const deleteArticle = mutation({
     articleId: v.id("articles"),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
@@ -184,7 +185,7 @@ export const deleteArticle = mutation({
     }
 
     // Check ownership
-    if (article.userId !== userId.subject) {
+    if (article.userId !== userId) {
       throw new Error("Unauthorized");
     }
 
@@ -204,9 +205,9 @@ export const addTag = mutation({
     tag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
@@ -217,7 +218,7 @@ export const addTag = mutation({
     }
 
     // Check ownership
-    if (article.userId !== userId.subject) {
+    if (article.userId !== userId) {
       throw new Error("Unauthorized");
     }
 
@@ -239,9 +240,9 @@ export const removeTag = mutation({
     tag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
@@ -252,7 +253,7 @@ export const removeTag = mutation({
     }
 
     // Check ownership
-    if (article.userId !== userId.subject) {
+    if (article.userId !== userId) {
       throw new Error("Unauthorized");
     }
 
@@ -275,9 +276,9 @@ export const updateArticle = mutation({
     archived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const userId = await ctx.auth.getUserIdentity();
-    if (!userId) {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
       throw new Error("Not authenticated");
     }
 
@@ -288,7 +289,7 @@ export const updateArticle = mutation({
     }
 
     // Check ownership
-    if (article.userId !== userId.subject) {
+    if (article.userId !== userId) {
       throw new Error("Unauthorized");
     }
 

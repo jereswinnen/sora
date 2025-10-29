@@ -1,17 +1,26 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useConvexAuth } from "convex/react";
 
 export default function AuthPage() {
   const { signIn } = useAuthActions();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Redirect to dashboard when authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +33,7 @@ export default function AuthPage() {
         password,
         flow: isSignUp ? "signUp" : "signIn",
       });
-
-      // Small delay to ensure auth state propagates
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      router.push("/dashboard");
+      // Don't manually redirect - let the useEffect handle it when auth state updates
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
       setLoading(false);
