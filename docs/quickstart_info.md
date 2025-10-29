@@ -79,14 +79,13 @@ project-root/
 └─ tsconfig.json
 ```
 
-## Convex Auth Setup (`convex/auth.ts`)
+## Convex Auth Setup (`convex/auth.ts`) (with OTP)
 
 ```typescript
 import { defineAuth } from "@convex-dev/auth/server";
-import GitHub from "@convex-dev/auth/providers/GitHub";
 
 export const { auth, signIn, signOut, getCurrentUser } = defineAuth({
-  providers: [GitHub],
+
 });
 ```
 

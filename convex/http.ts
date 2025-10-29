@@ -1,8 +1,9 @@
 import { httpRouter } from "convex/server";
-// TODO: Import auth from ./auth
+import { auth } from "./auth";
 
 const http = httpRouter();
 
-// TODO: Configure auth routes
+// Add Convex Auth HTTP routes for JWT verification and OAuth
+auth.addHttpRoutes(http);
 
 export default http;
