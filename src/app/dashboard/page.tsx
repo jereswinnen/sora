@@ -241,6 +241,12 @@ function Dashboard() {
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2">
                     <button
+                      onClick={() => router.push(`/article/${article._id}`)}
+                      className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded"
+                    >
+                      Read
+                    </button>
+                    <button
                       onClick={() => setSelectedArticleId(article._id)}
                       className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
                     >

@@ -16,7 +16,7 @@ export interface ParsedArticle {
  * Configuration for article parsing
  */
 const PARSER_CONFIG = {
-  MAX_CONTENT_LENGTH: 100000, // 100KB of text
+  MAX_CONTENT_LENGTH: 500000, // 500KB - HTML is larger than plain text
   MAX_EXCERPT_LENGTH: 300,
   MAX_TITLE_LENGTH: 200,
 } as const;
@@ -43,9 +43,9 @@ export async function parseArticle(url: string): Promise<ParsedArticle> {
 
     // Extract article data
     const title = extractTitle($);
-    const content = extractContent($);
-    const excerpt = content.substring(0, PARSER_CONFIG.MAX_EXCERPT_LENGTH).trim() + "...";
-    const imageUrl = extractImage($);
+    const content = extractContent($, url);
+    const excerpt = extractExcerpt($);
+    const imageUrl = extractImage($, url);
     const author = extractAuthor($);
     const publishedAt = extractPublishedDate($);
 
@@ -76,40 +76,87 @@ function extractTitle($: cheerio.CheerioAPI): string {
   return title.substring(0, PARSER_CONFIG.MAX_TITLE_LENGTH);
 }
 
-function extractContent($: cheerio.CheerioAPI): string {
-  // Remove unwanted elements
-  $("script, style, nav, header, footer, aside, .ad, .advertisement").remove();
-
-  let rawContent = "";
+function extractContent($: cheerio.CheerioAPI, baseUrl: string): string {
+  // Find the main content container
+  let $content: cheerio.Cheerio<any>;
 
   if ($("article").length > 0) {
-    rawContent = $("article").text();
+    $content = $("article").first();
   } else if ($("main").length > 0) {
-    rawContent = $("main").text();
+    $content = $("main").first();
   } else if ($('[role="main"]').length > 0) {
-    rawContent = $('[role="main"]').text();
+    $content = $('[role="main"]').first();
   } else {
-    rawContent = $("body").text();
+    $content = $("body");
   }
 
-  // Clean up whitespace
-  let content = rawContent.replace(/\s+/g, " ").replace(/\n+/g, "\n").trim();
+  // Clone to avoid modifying original
+  const $contentClone = $content.clone();
 
-  if (content.length > PARSER_CONFIG.MAX_CONTENT_LENGTH) {
-    content = content.substring(0, PARSER_CONFIG.MAX_CONTENT_LENGTH) + "...";
+  // Remove unwanted elements from the content
+  $contentClone.find("script, style, nav, header, footer, aside, iframe, noscript").remove();
+  $contentClone.find(".ad, .advertisement, .social-share, .comments, .related-posts").remove();
+  $contentClone.find('[class*="popup"], [class*="modal"], [class*="overlay"]').remove();
+
+  // Remove webmentions, likes, reactions, and other social cruft
+  $contentClone.find(".webmentions, .webmention, .likes, .like, .repost, .reposts, .reactions").remove();
+  $contentClone.find('[class*="webmention"], [class*="like"], [class*="reaction"]').remove();
+  $contentClone.find('[class*="share"], [class*="follow"], [class*="subscribe"]').remove();
+  $contentClone.find('[id*="webmention"], [id*="like"], [id*="reaction"]').remove();
+
+  // Convert relative URLs to absolute URLs
+  convertRelativeUrls($contentClone, baseUrl);
+
+  // Get the HTML content with formatting preserved
+  let htmlContent = $contentClone.html() || "";
+
+  // Basic length check (HTML will be longer than text)
+  if (htmlContent.length > PARSER_CONFIG.MAX_CONTENT_LENGTH) {
+    htmlContent = htmlContent.substring(0, PARSER_CONFIG.MAX_CONTENT_LENGTH) + "...";
   }
 
-  return content;
+  return htmlContent.trim();
 }
 
-function extractImage($: cheerio.CheerioAPI): string | undefined {
+function extractExcerpt($: cheerio.CheerioAPI): string {
+  // Find the main content container
+  let $content: cheerio.Cheerio<any>;
+
+  if ($("article").length > 0) {
+    $content = $("article").first();
+  } else if ($("main").length > 0) {
+    $content = $("main").first();
+  } else if ($('[role="main"]').length > 0) {
+    $content = $('[role="main"]').first();
+  } else {
+    $content = $("body");
+  }
+
+  // Get plain text for excerpt
+  const plainText = $content.text();
+
+  // Clean up whitespace
+  const cleanText = plainText.replace(/\s+/g, " ").trim();
+
+  // Create excerpt
+  if (cleanText.length > PARSER_CONFIG.MAX_EXCERPT_LENGTH) {
+    return cleanText.substring(0, PARSER_CONFIG.MAX_EXCERPT_LENGTH).trim() + "...";
+  }
+
+  return cleanText;
+}
+
+function extractImage($: cheerio.CheerioAPI, baseUrl: string): string | undefined {
   const imageUrl =
     $('meta[property="og:image"]').attr("content") ||
     $('meta[name="twitter:image"]').attr("content") ||
     $("article img, main img").first().attr("src");
 
-  if (imageUrl && isValidUrl(imageUrl)) {
-    return imageUrl;
+  if (imageUrl) {
+    const absoluteUrl = toAbsoluteUrl(imageUrl, baseUrl);
+    if (absoluteUrl && isValidUrl(absoluteUrl)) {
+      return absoluteUrl;
+    }
   }
 
   return undefined;
@@ -139,6 +186,68 @@ function extractPublishedDate($: cheerio.CheerioAPI): number | undefined {
   }
 
   return undefined;
+}
+
+/**
+ * Convert a relative URL to an absolute URL using the base URL
+ */
+function toAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
+  try {
+    // If it's already an absolute URL, return it
+    if (relativeUrl.startsWith("http://") || relativeUrl.startsWith("https://")) {
+      return relativeUrl;
+    }
+
+    // Handle protocol-relative URLs (//example.com/image.jpg)
+    if (relativeUrl.startsWith("//")) {
+      const baseUrlObj = new URL(baseUrl);
+      return `${baseUrlObj.protocol}${relativeUrl}`;
+    }
+
+    // Convert relative URL to absolute
+    const url = new URL(relativeUrl, baseUrl);
+    return url.href;
+  } catch {
+    // If URL construction fails, return the original
+    return relativeUrl;
+  }
+}
+
+/**
+ * Convert all relative URLs in images and links to absolute URLs
+ */
+function convertRelativeUrls($content: cheerio.Cheerio<any>, baseUrl: string): void {
+  // Convert image src attributes
+  $content.find("img").each((_, elem) => {
+    const src = elem.attribs?.src;
+    if (src) {
+      elem.attribs.src = toAbsoluteUrl(src, baseUrl);
+    }
+
+    // Also handle srcset if present
+    const srcset = elem.attribs?.srcset;
+    if (srcset) {
+      const newSrcset = srcset
+        .split(",")
+        .map((src) => {
+          const parts = src.trim().split(/\s+/);
+          if (parts[0]) {
+            parts[0] = toAbsoluteUrl(parts[0], baseUrl);
+          }
+          return parts.join(" ");
+        })
+        .join(", ");
+      elem.attribs.srcset = newSrcset;
+    }
+  });
+
+  // Convert link href attributes
+  $content.find("a").each((_, elem) => {
+    const href = elem.attribs?.href;
+    if (href && !href.startsWith("#") && !href.startsWith("mailto:") && !href.startsWith("tel:")) {
+      elem.attribs.href = toAbsoluteUrl(href, baseUrl);
+    }
+  });
 }
 
 function isValidUrl(urlString: string): boolean {
