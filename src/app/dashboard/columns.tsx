@@ -47,7 +47,6 @@ export const createColumns = (actions: {
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
-        className="translate-y-0.5"
       />
     ),
     cell: ({ row }) => (
@@ -55,7 +54,6 @@ export const createColumns = (actions: {
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
-        className="translate-y-0.5"
       />
     ),
     enableSorting: false,
@@ -128,14 +126,12 @@ export const createColumns = (actions: {
       return (
         <div className="flex flex-wrap gap-1">
           {tags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
+            <Badge key={tag} variant="secondary">
               {tag}
             </Badge>
           ))}
           {tags.length > 3 && (
-            <Badge variant="outline" className="text-xs">
-              +{tags.length - 3}
-            </Badge>
+            <Badge variant="outline">+{tags.length - 3}</Badge>
           )}
         </div>
       );
@@ -167,7 +163,7 @@ export const createColumns = (actions: {
               variant="ghost"
               className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="size-4" />
               <span className="sr-only">Open menu</span>
             </Button>
           </DropdownMenuTrigger>
