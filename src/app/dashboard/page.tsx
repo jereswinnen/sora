@@ -1,12 +1,32 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
+import { useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -23,7 +43,8 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-2">
+          <Spinner className="size-8" />
           <p className="text-lg">Loading...</p>
         </div>
       </div>
@@ -34,7 +55,8 @@ export default function DashboardPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-2">
+          <Spinner className="size-8" />
           <p className="text-lg">Redirecting to sign in...</p>
         </div>
       </div>
@@ -53,8 +75,6 @@ function Dashboard() {
   const [newTag, setNewTag] = useState("");
   const [selectedArticleId, setSelectedArticleId] = useState<Id<"articles"> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   // Convex hooks
   const articles = useQuery(api.articles.listArticles, { limit: 50 });
@@ -67,31 +87,27 @@ function Dashboard() {
 
   const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
     setLoading(true);
 
     try {
       const tagArray = tags ? tags.split(",").map((t) => t.trim()) : [];
       await saveArticle({ url, tags: tagArray });
-      setSuccess("Article saved successfully!");
+      toast.success("Article saved successfully!");
       setUrl("");
       setTags("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save article");
+      toast.error(err instanceof Error ? err.message : "Failed to save article");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteArticle = async (articleId: Id<"articles">) => {
-    if (!confirm("Are you sure you want to delete this article?")) return;
-
     try {
       await deleteArticle({ articleId });
-      setSuccess("Article deleted!");
+      toast.success("Article deleted!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete article");
+      toast.error(err instanceof Error ? err.message : "Failed to delete article");
     }
   };
 
@@ -100,29 +116,29 @@ function Dashboard() {
 
     try {
       await addTag({ articleId: selectedArticleId, tag: newTag });
-      setSuccess("Tag added!");
+      toast.success("Tag added!");
       setNewTag("");
       setSelectedArticleId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add tag");
+      toast.error(err instanceof Error ? err.message : "Failed to add tag");
     }
   };
 
   const handleMarkAsRead = async (articleId: Id<"articles">) => {
     try {
       await updateArticle({ articleId, readAt: Date.now() });
-      setSuccess("Article marked as read!");
+      toast.success("Article marked as read!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update article");
+      toast.error(err instanceof Error ? err.message : "Failed to update article");
     }
   };
 
   const handleArchive = async (articleId: Id<"articles">) => {
     try {
       await updateArticle({ articleId, archived: true });
-      setSuccess("Article archived!");
+      toast.success("Article archived!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to archive article");
+      toast.error(err instanceof Error ? err.message : "Failed to archive article");
     }
   };
 
@@ -137,104 +153,97 @@ function Dashboard() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Sora Dashboard</h1>
-          <button
-            onClick={handleSignOut}
-            className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded"
-          >
+          <Button variant="outline" onClick={handleSignOut}>
             Sign Out
-          </button>
+          </Button>
         </div>
-
-        {/* Alerts */}
-        {error && (
-          <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-4 p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded">
-            {success}
-          </div>
-        )}
 
         {/* Save Article Form */}
-        <div className="bg-white p-6 rounded-lg shadow mb-8">
-          <h2 className="text-xl font-semibold mb-4">Save New Article</h2>
-          <form onSubmit={handleSaveArticle} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Article URL
-              </label>
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com/article"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="tech, news, important"
-                list="tag-suggestions"
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <datalist id="tag-suggestions">
-                {allTags?.map((tag) => (
-                  <option key={tag._id} value={tag.displayName}>
-                    {tag.displayName} ({tag.count})
-                  </option>
-                ))}
-              </datalist>
-              {allTags && allTags.length > 0 && (
-                <div className="mt-2 text-xs text-gray-600">
-                  <span className="font-medium">Existing tags:</span>{" "}
-                  {allTags.slice(0, 10).map((tag, idx) => (
-                    <span key={tag._id}>
-                      {idx > 0 && ", "}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Save New Article</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSaveArticle} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="article-url">Article URL</Label>
+                <Input
+                  id="article-url"
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://example.com/article"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tags">Tags (comma-separated)</Label>
+                <Input
+                  id="tags"
+                  type="text"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="tech, news, important"
+                  list="tag-suggestions"
+                />
+                <datalist id="tag-suggestions">
+                  {allTags?.map((tag) => (
+                    <option key={tag._id} value={tag.displayName}>
                       {tag.displayName} ({tag.count})
-                    </span>
+                    </option>
                   ))}
-                  {allTags.length > 10 && "..."}
-                </div>
-              )}
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
-            >
-              {loading ? "Saving..." : "Save Article"}
-            </button>
-          </form>
-        </div>
+                </datalist>
+                {allTags && allTags.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium">Existing tags:</span>{" "}
+                    {allTags.slice(0, 10).map((tag, idx) => (
+                      <span key={tag._id}>
+                        {idx > 0 && ", "}
+                        {tag.displayName} ({tag.count})
+                      </span>
+                    ))}
+                    {allTags.length > 10 && "..."}
+                  </p>
+                )}
+              </div>
+              <Button type="submit" disabled={loading || !url}>
+                {loading ? (
+                  <>
+                    <Spinner />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Article"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         {/* Articles List */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Saved Articles ({articles?.length || 0})</h2>
-
-          {articles === undefined ? (
-            <p className="text-gray-500">Loading...</p>
-          ) : articles.length === 0 ? (
-            <p className="text-gray-500">No articles saved yet. Add one above!</p>
-          ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Saved Articles ({articles?.length || 0})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {articles === undefined ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Spinner />
+                <p>Loading...</p>
+              </div>
+            ) : articles.length === 0 ? (
+              <p className="text-muted-foreground">No articles saved yet. Add one above!</p>
+            ) : (
             <div className="space-y-4">
               {articles.map((article) => (
-                <div key={article._id} className="border border-gray-200 rounded p-4">
+                <div key={article._id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{article.title}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{article.url}</p>
-                      <p className="text-sm text-gray-700 line-clamp-2">{article.excerpt}</p>
+                      <p className="text-sm text-muted-foreground mb-2">{article.url}</p>
+                      <p className="text-sm line-clamp-2">{article.excerpt}</p>
                       {article.author && (
-                        <p className="text-xs text-gray-500 mt-1">By {article.author}</p>
+                        <p className="text-xs text-muted-foreground mt-1">By {article.author}</p>
                       )}
                     </div>
                   </div>
@@ -243,32 +252,29 @@ function Dashboard() {
                   {article.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {article.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded flex items-center gap-1"
-                        >
+                        <Badge key={tag} variant="secondary" className="gap-1">
                           {tag}
                           <button
                             onClick={async () => {
                               try {
                                 await removeTag({ articleId: article._id, tag });
-                                setSuccess("Tag removed!");
+                                toast.success("Tag removed!");
                               } catch (err) {
-                                setError(err instanceof Error ? err.message : "Failed to remove tag");
+                                toast.error(err instanceof Error ? err.message : "Failed to remove tag");
                               }
                             }}
-                            className="text-blue-600 hover:text-blue-800 font-bold ml-1"
+                            className="hover:bg-secondary-foreground/20 rounded-full"
                             title="Remove tag"
                           >
-                            ×
+                            <X className="size-3" />
                           </button>
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   )}
 
                   {/* Status */}
-                  <div className="flex gap-2 mb-3 text-xs text-gray-600">
+                  <div className="flex gap-2 mb-3 text-xs text-muted-foreground">
                     <span>Saved: {new Date(article.savedAt).toLocaleDateString()}</span>
                     {article.readAt && <span>• Read: {new Date(article.readAt).toLocaleDateString()}</span>}
                     {article.archived && <span>• Archived</span>}
@@ -276,49 +282,70 @@ function Dashboard() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2">
-                    <button
+                    <Button
+                      size="sm"
                       onClick={() => router.push(`/article/${article._id}`)}
-                      className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded"
                     >
                       Read
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => setSelectedArticleId(article._id)}
-                      className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
                     >
                       Add Tag
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => handleMarkAsRead(article._id)}
-                      className="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded"
                     >
                       Mark Read
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => handleArchive(article._id)}
-                      className="px-3 py-1 text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded"
                     >
                       Archive
-                    </button>
-                    <button
-                      onClick={() => handleDeleteArticle(article._id)}
-                      className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded"
-                    >
-                      Delete
-                    </button>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive">
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Article</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this article? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteArticle(article._id)}
+                            className={cn(buttonVariants({ variant: "destructive" }))}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
 
                   {/* Add Tag Input */}
                   {selectedArticleId === article._id && (
                     <div className="mt-3">
                       <div className="flex gap-2">
-                        <input
+                        <Input
                           type="text"
                           value={newTag}
                           onChange={(e) => setNewTag(e.target.value)}
                           placeholder="New tag name"
                           list="tag-suggestions-add"
-                          className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1"
                         />
                         <datalist id="tag-suggestions-add">
                           {allTags?.map((tag) => (
@@ -327,31 +354,29 @@ function Dashboard() {
                             </option>
                           ))}
                         </datalist>
-                        <button
-                          onClick={handleAddTag}
-                          className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded"
-                        >
+                        <Button size="sm" onClick={handleAddTag}>
                           Add
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => {
                             setSelectedArticleId(null);
                             setNewTag("");
                           }}
-                          className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                       {allTags && allTags.length > 0 && (
-                        <div className="mt-2 text-xs text-gray-500">
+                        <p className="mt-2 text-xs text-muted-foreground">
                           Suggestions: {allTags.slice(0, 5).map((tag, idx) => (
                             <span key={tag._id}>
                               {idx > 0 && ", "}
                               {tag.displayName}
                             </span>
                           ))}
-                        </div>
+                        </p>
                       )}
                     </div>
                   )}
@@ -359,7 +384,8 @@ function Dashboard() {
               ))}
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
