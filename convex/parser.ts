@@ -1,4 +1,6 @@
 import * as cheerio from "cheerio";
+import { Readability } from "@mozilla/readability";
+import { parseHTML } from "linkedom";
 
 /**
  * Parsed article data structure
@@ -22,8 +24,8 @@ const PARSER_CONFIG = {
 } as const;
 
 /**
- * Parses an article from a URL using Cheerio
- * This runs in a Convex action context
+ * Parses an article from a URL using Mozilla Readability for content extraction
+ * and Cheerio for metadata extraction. This runs in a Convex action context.
  */
 export async function parseArticle(url: string): Promise<ParsedArticle> {
   try {
@@ -39,22 +41,36 @@ export async function parseArticle(url: string): Promise<ParsedArticle> {
     }
 
     const html = await response.text();
+
+    // Load with Cheerio for metadata extraction
     const $ = cheerio.load(html);
 
-    // Extract article data
-    const title = extractTitle($);
-    const content = extractContent($, url);
-    const excerpt = extractExcerpt($);
+    // Extract metadata using Cheerio (more reliable than Readability for meta tags)
+    const metaTitle = extractTitle($);
     const imageUrl = extractImage($, url);
     const author = extractAuthor($);
     const publishedAt = extractPublishedDate($);
 
+    // Use Readability for content extraction
+    const doc = parseHTML(html).document;
+    const reader = new Readability(doc, {
+      keepClasses: false, // Remove class attributes for cleaner HTML
+    });
+    const article = reader.parse();
+
+    if (!article) {
+      throw new Error("Could not extract article content from this URL");
+    }
+
+    // Convert relative URLs in Readability output
+    const contentWithAbsoluteUrls = convertUrlsInHtmlString(article.content || "", url);
+
     return {
-      title,
-      content,
-      excerpt,
+      title: metaTitle || article.title || "Untitled", // Prefer meta tag title
+      content: contentWithAbsoluteUrls,
+      excerpt: article.excerpt || "",
       imageUrl,
-      author,
+      author: author || article.byline || undefined, // Prefer meta tag author
       publishedAt,
     };
   } catch (error) {
@@ -76,69 +92,6 @@ function extractTitle($: cheerio.CheerioAPI): string {
   return title.substring(0, PARSER_CONFIG.MAX_TITLE_LENGTH);
 }
 
-function extractContent($: cheerio.CheerioAPI, baseUrl: string): string {
-  // Find the main content container
-  const $content =
-    $("article").length > 0
-      ? $("article").first()
-      : $("main").length > 0
-        ? $("main").first()
-        : $('[role="main"]').length > 0
-          ? $('[role="main"]').first()
-          : $("body");
-
-  // Clone to avoid modifying original
-  const $contentClone = $content.clone();
-
-  // Remove unwanted elements from the content
-  $contentClone.find("script, style, nav, header, footer, aside, iframe, noscript").remove();
-  $contentClone.find(".ad, .advertisement, .social-share, .comments, .related-posts").remove();
-  $contentClone.find('[class*="popup"], [class*="modal"], [class*="overlay"]').remove();
-
-  // Remove webmentions, likes, reactions, and other social cruft
-  $contentClone.find(".webmentions, .webmention, .likes, .like, .repost, .reposts, .reactions").remove();
-  $contentClone.find('[class*="webmention"], [class*="like"], [class*="reaction"]').remove();
-  $contentClone.find('[class*="share"], [class*="follow"], [class*="subscribe"]').remove();
-  $contentClone.find('[id*="webmention"], [id*="like"], [id*="reaction"]').remove();
-
-  // Convert relative URLs to absolute URLs
-  convertRelativeUrls($contentClone, baseUrl);
-
-  // Get the HTML content with formatting preserved
-  let htmlContent = $contentClone.html() || "";
-
-  // Basic length check (HTML will be longer than text)
-  if (htmlContent.length > PARSER_CONFIG.MAX_CONTENT_LENGTH) {
-    htmlContent = htmlContent.substring(0, PARSER_CONFIG.MAX_CONTENT_LENGTH) + "...";
-  }
-
-  return htmlContent.trim();
-}
-
-function extractExcerpt($: cheerio.CheerioAPI): string {
-  // Find the main content container
-  const $content =
-    $("article").length > 0
-      ? $("article").first()
-      : $("main").length > 0
-        ? $("main").first()
-        : $('[role="main"]').length > 0
-          ? $('[role="main"]').first()
-          : $("body");
-
-  // Get plain text for excerpt
-  const plainText = $content.text();
-
-  // Clean up whitespace
-  const cleanText = plainText.replace(/\s+/g, " ").trim();
-
-  // Create excerpt
-  if (cleanText.length > PARSER_CONFIG.MAX_EXCERPT_LENGTH) {
-    return cleanText.substring(0, PARSER_CONFIG.MAX_EXCERPT_LENGTH).trim() + "...";
-  }
-
-  return cleanText;
-}
 
 function extractImage($: cheerio.CheerioAPI, baseUrl: string): string | undefined {
   const imageUrl =
@@ -208,11 +161,14 @@ function toAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
 }
 
 /**
- * Convert all relative URLs in images and links to absolute URLs
+ * Convert all relative URLs in an HTML string to absolute URLs
+ * Used for processing Readability's HTML output
  */
-function convertRelativeUrls($content: ReturnType<cheerio.CheerioAPI>, baseUrl: string): void {
+function convertUrlsInHtmlString(htmlString: string, baseUrl: string): string {
+  const $ = cheerio.load(htmlString);
+
   // Convert image src attributes
-  $content.find("img").each((_, elem) => {
+  $("img").each((_, elem) => {
     const src = elem.attribs?.src;
     if (src) {
       elem.attribs.src = toAbsoluteUrl(src, baseUrl);
@@ -236,12 +192,14 @@ function convertRelativeUrls($content: ReturnType<cheerio.CheerioAPI>, baseUrl: 
   });
 
   // Convert link href attributes
-  $content.find("a").each((_, elem) => {
+  $("a").each((_, elem) => {
     const href = elem.attribs?.href;
     if (href && !href.startsWith("#") && !href.startsWith("mailto:") && !href.startsWith("tel:")) {
       elem.attribs.href = toAbsoluteUrl(href, baseUrl);
     }
   });
+
+  return $.html();
 }
 
 function isValidUrl(urlString: string): boolean {

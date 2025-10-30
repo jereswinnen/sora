@@ -21,8 +21,13 @@ export const saveArticle = action({
       throw new Error("Not authenticated");
     }
 
+    console.log(`Parsing article: ${args.url}`);
+
     // Parse the article
     const parsed = await parseArticle(args.url);
+
+    const authorInfo = parsed.author ? ` by ${parsed.author}` : "";
+    console.log(`Parsed successfully: "${parsed.title}"${authorInfo}`);
 
     // Save to database via internal mutation
     const articleId: Id<"articles"> = await ctx.runMutation(api.articles.saveArticleToDB, {
@@ -35,6 +40,8 @@ export const saveArticle = action({
       publishedAt: parsed.publishedAt,
       tags: args.tags || [],
     });
+
+    console.log(`Saved article with ID: ${articleId}`);
 
     return articleId;
   },
