@@ -94,20 +94,40 @@ export const clearDatabase = mutation({
 });
 
 /**
- * Default URLs for dummy data
- * These are well-structured articles that parse reliably
+ * Default articles for dummy data
+ * Each article can have its own tags, or use the default tags if not specified
  */
-const DEFAULT_DUMMY_URLS = [
-  "https://paulgraham.com/greatwork.html",
-  "https://www.joelonsoftware.com/2000/08/09/the-joel-test-12-steps-to-better-code/",
-  "https://martinfowler.com/articles/is-quality-worth-cost.html",
-  "https://stackoverflow.blog/2023/12/25/is-software-getting-worse/",
+const DEFAULT_DUMMY_ARTICLES = [
+  {
+    url: "https://simonwillison.net/2025/Oct/22/living-dangerously-with-claude/",
+    tags: ["AI", "Claude", "tech"],
+  },
+  {
+    url: "https://rknight.me/blog/get-okay/",
+    tags: ["personal", "life"],
+  },
+  {
+    url: "https://gosha.net/2025/photo-workflow/",
+    tags: ["photography"],
+  },
+  {
+    url: "https://jeremybassetti.com/fieldnotes/2025/post-documentary-photography/",
+    tags: ["photography"],
+  },
+  {
+    url: "https://matthiasott.com/notes/listening-closely",
+    tags: ["web development"],
+  },
+  {
+    url: "https://samwarnick.com/blog/migrating-samwarnick-com-to-be-self-hosted/",
+    tags: ["web development"],
+  },
 ];
 
 /**
- * Default tags for dummy data
+ * Default tags (used when articles are provided as plain URLs without tags)
  */
-const DEFAULT_DUMMY_TAGS = ["demo", "test"];
+const DEFAULT_DUMMY_TAGS: string[] = [];
 
 /**
  * Add dummy data to the database by parsing real URLs
@@ -137,9 +157,17 @@ export const addDummyData = action({
       );
     }
 
-    // Use provided URLs/tags or defaults
-    const urls = args.urls || DEFAULT_DUMMY_URLS;
-    const tags = args.tags || DEFAULT_DUMMY_TAGS;
+    // Build articles list with tags
+    let articles: Array<{ url: string; tags: string[] }>;
+
+    if (args.urls) {
+      // User provided custom URLs - use provided tags or default tags for all
+      const customTags = args.tags || DEFAULT_DUMMY_TAGS;
+      articles = args.urls.map((url) => ({ url, tags: customTags }));
+    } else {
+      // No custom URLs - use defaults with per-article tags
+      articles = DEFAULT_DUMMY_ARTICLES;
+    }
 
     // Find the first user to associate articles with
     const user = await ctx.runQuery(internal.helpers.getFirstUser);
@@ -149,7 +177,7 @@ export const addDummyData = action({
       );
     }
 
-    console.log(`Adding ${urls.length} dummy articles for user: ${user._id}`);
+    console.log(`Adding ${articles.length} dummy articles for user: ${user._id}`);
 
     const results = {
       successful: 0,
@@ -157,11 +185,11 @@ export const addDummyData = action({
       errors: [] as string[],
     };
 
-    // Parse and save each URL
-    for (const url of urls) {
+    // Parse and save each article
+    for (const article of articles) {
       try {
-        console.log(`Fetching: ${url}`);
-        const parsed = await parseArticle(url);
+        console.log(`Fetching: ${article.url}`);
+        const parsed = await parseArticle(article.url);
 
         const authorInfo = parsed.author ? ` by ${parsed.author}` : "";
         console.log(`Parsed successfully: "${parsed.title}"${authorInfo}`);
@@ -169,30 +197,30 @@ export const addDummyData = action({
         // Save directly to database without auth checks
         await ctx.runMutation(internal.helpers.saveArticleForUser, {
           userId: user._id,
-          url,
+          url: article.url,
           title: parsed.title,
           content: parsed.content,
           excerpt: parsed.excerpt,
           imageUrl: parsed.imageUrl,
           author: parsed.author,
           publishedAt: parsed.publishedAt,
-          tags,
+          tags: article.tags,
         });
 
         results.successful++;
-        console.log(`✓ Successfully saved: ${url}`);
+        console.log(`✓ Successfully saved: ${article.url} (tags: ${article.tags.join(", ")})`);
       } catch (error) {
         results.failed++;
-        const errorMsg = `✗ Failed to save ${url}: ${error}`;
+        const errorMsg = `✗ Failed to save ${article.url}: ${error}`;
         results.errors.push(errorMsg);
         console.error(errorMsg);
       }
     }
 
     console.log("\nDummy data generation complete!");
-    console.log(`Successful: ${results.successful}/${urls.length}`);
+    console.log(`Successful: ${results.successful}/${articles.length}`);
     if (results.failed > 0) {
-      console.log(`Failed: ${results.failed}/${urls.length}`);
+      console.log(`Failed: ${results.failed}/${articles.length}`);
     }
 
     return results;

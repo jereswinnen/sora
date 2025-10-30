@@ -134,25 +134,37 @@ pnpm db:seed
 pnpm db:reset
 ```
 
-## Customizing Default URLs
+## Customizing Default Articles
 
 Want to change the default articles? Edit `convex/devTools.ts`:
 
 ```typescript
-const DEFAULT_DUMMY_URLS = [
-  "https://your-favorite-blog.com/article1",
-  "https://your-favorite-blog.com/article2",
-  // Add your own URLs here
+const DEFAULT_DUMMY_ARTICLES = [
+  {
+    url: "https://your-favorite-blog.com/article1",
+    tags: ["tech", "programming"],
+  },
+  {
+    url: "https://your-favorite-blog.com/article2",
+    tags: ["design", "UX"],
+  },
+  // Add your own articles here with custom tags for each
 ];
 
-const DEFAULT_DUMMY_TAGS = ["your", "custom", "tags"];
+const DEFAULT_TAGS = ["demo", "test"]; // Used when providing custom URLs without tags
 ```
+
+**How tags work:**
+- ✅ Each default article has its own specific tags
+- ✅ All tags are automatically added to the `tags` table
+- ✅ Tag counts are tracked (how many articles use each tag)
+- ✅ When you provide custom URLs via CLI, all get the same tags (from `args.tags` or `DEFAULT_TAGS`)
 
 **Tips for choosing URLs:**
 - Choose articles with clear structure (headings, paragraphs)
 - Avoid paywalled or JavaScript-heavy sites
 - Use articles you'd actually want to read in the app
-- Paul Graham essays and tech blogs generally parse well
+- Personal blogs and tech articles generally parse well
 
 ## Troubleshooting
 
