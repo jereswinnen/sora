@@ -10,6 +10,8 @@
 
 import type * as articles from "../articles.js";
 import type * as auth from "../auth.js";
+import type * as devTools from "../devTools.js";
+import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as parser from "../parser.js";
 import type * as tags from "../tags.js";
@@ -31,6 +33,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   articles: typeof articles;
   auth: typeof auth;
+  devTools: typeof devTools;
+  helpers: typeof helpers;
   http: typeof http;
   parser: typeof parser;
   tags: typeof tags;

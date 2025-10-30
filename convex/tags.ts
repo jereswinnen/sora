@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
@@ -153,6 +153,79 @@ export const decrementTagCount = mutation({
       // Decrement count
       await ctx.db.patch(tag._id, {
         count: tag.count - 1,
+      });
+    }
+  },
+});
+
+/**
+ * Internal mutation: Normalize and create/update a tag for a specific user
+ * Used by dev tools to bypass authentication checks
+ */
+export const normalizeAndCreateTagForUser = internalMutation({
+  args: {
+    userId: v.id("users"),
+    tagName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Normalize the tag name
+    const normalizedName = normalizeTagName(args.tagName);
+
+    // Check if tag exists (case-insensitive)
+    const existingTag = await ctx.db
+      .query("tags")
+      .withIndex("by_user_name", (q) =>
+        q.eq("userId", args.userId).eq("name", normalizedName)
+      )
+      .first();
+
+    if (existingTag) {
+      // Tag exists, update lastUsedAt and return existing displayName
+      await ctx.db.patch(existingTag._id, {
+        lastUsedAt: Date.now(),
+      });
+      return existingTag.displayName;
+    } else {
+      // Tag doesn't exist, create it
+      await ctx.db.insert("tags", {
+        userId: args.userId,
+        name: normalizedName,
+        displayName: args.tagName.trim(), // Preserve original case
+        count: 0, // Will be incremented by incrementTagCount
+        lastUsedAt: Date.now(),
+        createdAt: Date.now(),
+      });
+      return args.tagName.trim();
+    }
+  },
+});
+
+/**
+ * Internal mutation: Increment the count for a tag for a specific user
+ * Used by dev tools to bypass authentication checks
+ */
+export const incrementTagCountForUser = internalMutation({
+  args: {
+    userId: v.id("users"),
+    tagName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Normalize the tag name
+    const normalizedName = normalizeTagName(args.tagName);
+
+    // Find the tag
+    const tag = await ctx.db
+      .query("tags")
+      .withIndex("by_user_name", (q) =>
+        q.eq("userId", args.userId).eq("name", normalizedName)
+      )
+      .first();
+
+    if (tag) {
+      // Increment count and update lastUsedAt
+      await ctx.db.patch(tag._id, {
+        count: tag.count + 1,
+        lastUsedAt: Date.now(),
       });
     }
   },

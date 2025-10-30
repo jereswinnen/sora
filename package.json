@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:clear": "npx convex run devTools:clearDatabase '{\"confirm\": \"YES_DELETE_ALL_DATA\"}'",
+    "db:seed": "npx convex run devTools:addDummyData",
+    "db:reset": "pnpm db:clear && pnpm db:seed"
   },
   "dependencies": {
     "@auth/core": "0.37.0",
