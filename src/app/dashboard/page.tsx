@@ -10,10 +10,8 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -25,8 +23,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DataTable } from "@/components/ui/data-table";
+import { createColumns, Article } from "./columns";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -74,15 +81,16 @@ function Dashboard() {
   const [tags, setTags] = useState("");
   const [newTag, setNewTag] = useState("");
   const [selectedArticleId, setSelectedArticleId] = useState<Id<"articles"> | null>(null);
+  const [deleteArticleId, setDeleteArticleId] = useState<Id<"articles"> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [addTagDialogOpen, setAddTagDialogOpen] = useState(false);
 
   // Convex hooks
-  const articles = useQuery(api.articles.listArticles, { limit: 50 });
+  const articles = useQuery(api.articles.listArticles, { limit: 100 });
   const allTags = useQuery(api.tags.getAllTags);
   const saveArticle = useAction(api.articles.saveArticle);
   const deleteArticle = useMutation(api.articles.deleteArticle);
   const addTag = useMutation(api.articles.addTag);
-  const removeTag = useMutation(api.articles.removeTag);
   const updateArticle = useMutation(api.articles.updateArticle);
 
   const handleSaveArticle = async (e: React.FormEvent) => {
@@ -106,8 +114,36 @@ function Dashboard() {
     try {
       await deleteArticle({ articleId });
       toast.success("Article deleted!");
+      setDeleteArticleId(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete article");
+    }
+  };
+
+  const handleBulkDelete = async (articleIds: Id<"articles">[]) => {
+    try {
+      await Promise.all(articleIds.map(id => deleteArticle({ articleId: id })));
+      toast.success(`${articleIds.length} article(s) deleted!`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete articles");
+    }
+  };
+
+  const handleBulkMarkAsRead = async (articleIds: Id<"articles">[]) => {
+    try {
+      await Promise.all(articleIds.map(id => updateArticle({ articleId: id, readAt: Date.now() })));
+      toast.success(`${articleIds.length} article(s) marked as read!`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to mark articles as read");
+    }
+  };
+
+  const handleBulkArchive = async (articleIds: Id<"articles">[]) => {
+    try {
+      await Promise.all(articleIds.map(id => updateArticle({ articleId: id, archived: true })));
+      toast.success(`${articleIds.length} article(s) archived!`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to archive articles");
     }
   };
 
@@ -119,6 +155,7 @@ function Dashboard() {
       toast.success("Tag added!");
       setNewTag("");
       setSelectedArticleId(null);
+      setAddTagDialogOpen(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add tag");
     }
@@ -147,9 +184,33 @@ function Dashboard() {
     router.push("/auth");
   };
 
+  // Transform articles data to match the Article type
+  const tableData: Article[] = articles?.map(article => ({
+    _id: article._id,
+    title: article.title,
+    url: article.url,
+    excerpt: article.excerpt,
+    author: article.author,
+    savedAt: article.savedAt,
+    readAt: article.readAt,
+    archived: article.archived,
+    tags: article.tags,
+  })) ?? [];
+
+  const columns = createColumns({
+    onRead: (id) => router.push(`/article/${id}`),
+    onMarkAsRead: handleMarkAsRead,
+    onArchive: handleArchive,
+    onDelete: (id) => setDeleteArticleId(id),
+    onAddTag: (id) => {
+      setSelectedArticleId(id);
+      setAddTagDialogOpen(true);
+    },
+  });
+
   return (
     <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Sora Dashboard</h1>
@@ -220,7 +281,7 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Articles List */}
+        {/* Articles DataTable */}
         <Card>
           <CardHeader>
             <CardTitle>Saved Articles ({articles?.length || 0})</CardTitle>
@@ -229,163 +290,139 @@ function Dashboard() {
             {articles === undefined ? (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Spinner />
-                <p>Loading...</p>
+                <p>Loading articles...</p>
               </div>
-            ) : articles.length === 0 ? (
-              <p className="text-muted-foreground">No articles saved yet. Add one above!</p>
             ) : (
-            <div className="space-y-4">
-              {articles.map((article) => (
-                <div key={article._id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{article.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">{article.url}</p>
-                      <p className="text-sm line-clamp-2">{article.excerpt}</p>
-                      {article.author && (
-                        <p className="text-xs text-muted-foreground mt-1">By {article.author}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  {article.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {article.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="gap-1">
-                          {tag}
-                          <button
-                            onClick={async () => {
-                              try {
-                                await removeTag({ articleId: article._id, tag });
-                                toast.success("Tag removed!");
-                              } catch (err) {
-                                toast.error(err instanceof Error ? err.message : "Failed to remove tag");
-                              }
-                            }}
-                            className="hover:bg-secondary-foreground/20 rounded-full"
-                            title="Remove tag"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Status */}
-                  <div className="flex gap-2 mb-3 text-xs text-muted-foreground">
-                    <span>Saved: {new Date(article.savedAt).toLocaleDateString()}</span>
-                    {article.readAt && <span>• Read: {new Date(article.readAt).toLocaleDateString()}</span>}
-                    {article.archived && <span>• Archived</span>}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-wrap gap-2">
+              <DataTable
+                columns={columns}
+                data={tableData}
+                searchColumn="title"
+                searchPlaceholder="Filter by title..."
+                bulkActions={({ selectedRows, table }) => (
+                  <>
                     <Button
+                      variant="outline"
                       size="sm"
-                      onClick={() => router.push(`/article/${article._id}`)}
+                      onClick={() => {
+                        const ids = selectedRows.map((row: Article) => row._id);
+                        handleBulkMarkAsRead(ids);
+                        table.toggleAllPageRowsSelected(false);
+                      }}
                     >
-                      Read
+                      Mark as Read
                     </Button>
                     <Button
-                      size="sm"
                       variant="outline"
-                      onClick={() => setSelectedArticleId(article._id)}
-                    >
-                      Add Tag
-                    </Button>
-                    <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() => handleMarkAsRead(article._id)}
-                    >
-                      Mark Read
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleArchive(article._id)}
+                      onClick={() => {
+                        const ids = selectedRows.map((row: Article) => row._id);
+                        handleBulkArchive(ids);
+                        table.toggleAllPageRowsSelected(false);
+                      }}
                     >
                       Archive
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive">
-                          Delete
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Article</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this article? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteArticle(article._id)}
-                            className={cn(buttonVariants({ variant: "destructive" }))}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-
-                  {/* Add Tag Input */}
-                  {selectedArticleId === article._id && (
-                    <div className="mt-3">
-                      <div className="flex gap-2">
-                        <Input
-                          type="text"
-                          value={newTag}
-                          onChange={(e) => setNewTag(e.target.value)}
-                          placeholder="New tag name"
-                          list="tag-suggestions-add"
-                          className="flex-1"
-                        />
-                        <datalist id="tag-suggestions-add">
-                          {allTags?.map((tag) => (
-                            <option key={tag._id} value={tag.displayName}>
-                              {tag.displayName} ({tag.count})
-                            </option>
-                          ))}
-                        </datalist>
-                        <Button size="sm" onClick={handleAddTag}>
-                          Add
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedArticleId(null);
-                            setNewTag("");
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                      {allTags && allTags.length > 0 && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Suggestions: {allTags.slice(0, 5).map((tag, idx) => (
-                            <span key={tag._id}>
-                              {idx > 0 && ", "}
-                              {tag.displayName}
-                            </span>
-                          ))}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        const ids = selectedRows.map((row: Article) => row._id);
+                        handleBulkDelete(ids);
+                        table.toggleAllPageRowsSelected(false);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </>
+                )}
+              />
+            )}
           </CardContent>
         </Card>
+
+        {/* Add Tag Dialog */}
+        <Dialog open={addTagDialogOpen} onOpenChange={setAddTagDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Tag</DialogTitle>
+              <DialogDescription>
+                Add a tag to this article for better organization.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-tag">Tag Name</Label>
+                <Input
+                  id="new-tag"
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Enter tag name"
+                  list="tag-suggestions-add"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddTag();
+                    }
+                  }}
+                />
+                <datalist id="tag-suggestions-add">
+                  {allTags?.map((tag) => (
+                    <option key={tag._id} value={tag.displayName}>
+                      {tag.displayName} ({tag.count})
+                    </option>
+                  ))}
+                </datalist>
+                {allTags && allTags.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Suggestions: {allTags.slice(0, 5).map((tag, idx) => (
+                      <span key={tag._id}>
+                        {idx > 0 && ", "}
+                        {tag.displayName}
+                      </span>
+                    ))}
+                  </p>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAddTagDialogOpen(false);
+                  setNewTag("");
+                  setSelectedArticleId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleAddTag} disabled={!newTag}>
+                Add Tag
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteArticleId !== null} onOpenChange={(open) => !open && setDeleteArticleId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Article</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this article? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteArticleId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteArticleId && handleDeleteArticle(deleteArticleId)}
+                className={cn(buttonVariants({ variant: "destructive" }))}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

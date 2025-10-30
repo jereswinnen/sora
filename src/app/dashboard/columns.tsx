@@ -1,0 +1,198 @@
+"use client";
+
+import { ColumnDef } from "@tanstack/react-table";
+import { MoreHorizontal } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { Id } from "../../../convex/_generated/dataModel";
+
+// Define the shape of an article as returned by the query
+export type Article = {
+  _id: Id<"articles">;
+  title: string;
+  url: string;
+  excerpt?: string;
+  author?: string;
+  savedAt: number;
+  readAt?: number;
+  archived?: boolean;
+  tags: string[];
+};
+
+export const createColumns = (actions: {
+  onRead: (id: Id<"articles">) => void;
+  onMarkAsRead: (id: Id<"articles">) => void;
+  onArchive: (id: Id<"articles">) => void;
+  onDelete: (id: Id<"articles">) => void;
+  onAddTag: (id: Id<"articles">) => void;
+}): ColumnDef<Article>[] => [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+        className="translate-y-0.5"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+        className="translate-y-0.5"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    accessorKey: "title",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Title" />
+    ),
+    cell: ({ row }) => {
+      const article = row.original;
+      return (
+        <div className="flex flex-col">
+          <div className="max-w-[500px] truncate font-medium">
+            {article.title}
+          </div>
+          {article.author && (
+            <div className="text-xs text-muted-foreground">
+              by {article.author}
+            </div>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "status",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
+    cell: ({ row }) => {
+      const article = row.original;
+
+      if (article.archived) {
+        return <Badge variant="secondary">Archived</Badge>;
+      }
+
+      if (article.readAt) {
+        return <Badge variant="default">Read</Badge>;
+      }
+
+      return <Badge variant="outline">Unread</Badge>;
+    },
+    filterFn: (row, id, value) => {
+      const article = row.original;
+      if (value === "archived") return article.archived === true;
+      if (value === "read")
+        return article.readAt !== undefined && !article.archived;
+      if (value === "unread")
+        return article.readAt === undefined && !article.archived;
+      return true;
+    },
+  },
+  {
+    accessorKey: "tags",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Tags" />
+    ),
+    cell: ({ row }) => {
+      const tags = row.getValue("tags") as string[];
+
+      if (!tags || tags.length === 0) {
+        return <span className="text-xs text-muted-foreground">No tags</span>;
+      }
+
+      return (
+        <div className="flex flex-wrap gap-1">
+          {tags.slice(0, 3).map((tag) => (
+            <Badge key={tag} variant="secondary" className="text-xs">
+              {tag}
+            </Badge>
+          ))}
+          {tags.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{tags.length - 3}
+            </Badge>
+          )}
+        </div>
+      );
+    },
+    enableSorting: false,
+  },
+  {
+    accessorKey: "savedAt",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Saved" />
+    ),
+    cell: ({ row }) => {
+      const savedAt = row.getValue("savedAt") as number;
+      return (
+        <div className="text-sm">{new Date(savedAt).toLocaleDateString()}</div>
+      );
+    },
+  },
+  {
+    id: "actions",
+    enableHiding: false,
+    cell: ({ row }) => {
+      const article = row.original;
+
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => actions.onRead(article._id)}>
+              Read article
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => actions.onAddTag(article._id)}>
+              Add tag
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => actions.onMarkAsRead(article._id)}>
+              Mark as read
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => actions.onArchive(article._id)}>
+              Archive
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => actions.onDelete(article._id)}
+              className="text-destructive"
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
+  },
+];
