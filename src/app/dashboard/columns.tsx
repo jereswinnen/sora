@@ -70,9 +70,12 @@ export const createColumns = (actions: {
       const article = row.original;
       return (
         <div className="flex flex-col">
-          <div className="max-w-[500px] truncate font-medium">
+          <button
+            onClick={() => actions.onRead(article._id)}
+            className="max-w-[500px] truncate font-medium text-left hover:underline cursor-pointer"
+          >
             {article.title}
-          </div>
+          </button>
           {article.author && (
             <div className="text-xs text-muted-foreground">
               by {article.author}
