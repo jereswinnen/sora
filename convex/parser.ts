@@ -78,17 +78,14 @@ function extractTitle($: cheerio.CheerioAPI): string {
 
 function extractContent($: cheerio.CheerioAPI, baseUrl: string): string {
   // Find the main content container
-  let $content: cheerio.Cheerio<any>;
-
-  if ($("article").length > 0) {
-    $content = $("article").first();
-  } else if ($("main").length > 0) {
-    $content = $("main").first();
-  } else if ($('[role="main"]').length > 0) {
-    $content = $('[role="main"]').first();
-  } else {
-    $content = $("body");
-  }
+  const $content =
+    $("article").length > 0
+      ? $("article").first()
+      : $("main").length > 0
+        ? $("main").first()
+        : $('[role="main"]').length > 0
+          ? $('[role="main"]').first()
+          : $("body");
 
   // Clone to avoid modifying original
   const $contentClone = $content.clone();
@@ -120,17 +117,14 @@ function extractContent($: cheerio.CheerioAPI, baseUrl: string): string {
 
 function extractExcerpt($: cheerio.CheerioAPI): string {
   // Find the main content container
-  let $content: cheerio.Cheerio<any>;
-
-  if ($("article").length > 0) {
-    $content = $("article").first();
-  } else if ($("main").length > 0) {
-    $content = $("main").first();
-  } else if ($('[role="main"]').length > 0) {
-    $content = $('[role="main"]').first();
-  } else {
-    $content = $("body");
-  }
+  const $content =
+    $("article").length > 0
+      ? $("article").first()
+      : $("main").length > 0
+        ? $("main").first()
+        : $('[role="main"]').length > 0
+          ? $('[role="main"]').first()
+          : $("body");
 
   // Get plain text for excerpt
   const plainText = $content.text();
@@ -216,7 +210,7 @@ function toAbsoluteUrl(relativeUrl: string, baseUrl: string): string {
 /**
  * Convert all relative URLs in images and links to absolute URLs
  */
-function convertRelativeUrls($content: cheerio.Cheerio<any>, baseUrl: string): void {
+function convertRelativeUrls($content: ReturnType<cheerio.CheerioAPI>, baseUrl: string): void {
   // Convert image src attributes
   $content.find("img").each((_, elem) => {
     const src = elem.attribs?.src;

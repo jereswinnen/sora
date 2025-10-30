@@ -88,13 +88,9 @@ export default function ArticlePage({
               Published {new Date(article.publishedAt).toLocaleDateString()}
             </span>
           )}
-          <span>
-            Saved {new Date(article.savedAt).toLocaleDateString()}
-          </span>
+          <span>Saved {new Date(article.savedAt).toLocaleDateString()}</span>
           {article.readAt && (
-            <span>
-              Read {new Date(article.readAt).toLocaleDateString()}
-            </span>
+            <span>Read {new Date(article.readAt).toLocaleDateString()}</span>
           )}
         </div>
 
