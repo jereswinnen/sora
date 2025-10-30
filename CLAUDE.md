@@ -8,6 +8,7 @@ Sora is a personal article management app (MVP) designed for extensibility. It s
 
 **Tech Stack:**
 - **Frontend**: Next.js 16 (App Router), React 19, TailwindCSS 4
+- **UI Components**: shadcn/ui (installed and configured)
 - **Backend**: Convex (serverless backend-as-a-service)
 - **Authentication**: Convex Auth with Password provider (email + password)
 - **Deployment**: Web app (Next.js) + future iOS app planned
@@ -156,6 +157,12 @@ Business logic stays in Convex. Clients are thin.
 - Runs server-side in Convex actions (can't access browser APIs)
 - Uses Cheerio for HTML parsing
 - Extracts title, content, images, author, publish date from meta tags and content
+
+**UI Components (shadcn/ui):**
+- shadcn/ui components are installed and should be used natively wherever possible
+- Do NOT add custom styling to shadcn components - keep them in their native form
+- When using shadcn components, look up their documentation using the Context7 MCP (upstash-context-7-mcp) to understand proper usage patterns and available props
+- Components are located in `components/ui/` and can be imported directly
 
 ## Extensibility
 

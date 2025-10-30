@@ -4,6 +4,17 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useConvexAuth } from "convex/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 
 export default function AuthPage() {
   const { signIn } = useAuthActions();
@@ -42,75 +53,63 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">Sora</h1>
-          <p className="text-sm text-gray-600 mt-2">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl">Sora</CardTitle>
+          <CardDescription>
             {isSignUp ? "Create an account" : "Sign in to your account"}
-          </p>
-        </div>
+          </CardDescription>
+        </CardHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-              {error}
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
-          </button>
-        </form>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
 
-        <div className="text-center text-sm">
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-blue-600 hover:underline"
-          >
-            {isSignUp
-              ? "Already have an account? Sign in"
-              : "Don't have an account? Sign up"}
-          </button>
-        </div>
-      </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+            </Button>
+          </form>
+
+          <div className="text-center text-sm mt-4">
+            <Button
+              variant="link"
+              onClick={() => setIsSignUp(!isSignUp)}
+              type="button"
+              className="p-0"
+            >
+              {isSignUp
+                ? "Already have an account? Sign in"
+                : "Don't have an account? Sign up"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

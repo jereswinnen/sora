@@ -189,7 +189,7 @@ function extractImage($: cheerio.CheerioAPI): string | undefined {
  */
 function extractAuthor($: cheerio.CheerioAPI): string | undefined {
   // Try various author meta tags
-  let author =
+  const author =
     $('meta[name="author"]').attr("content") ||
     $('meta[property="article:author"]').attr("content") ||
     $('meta[name="twitter:creator"]').attr("content") ||
