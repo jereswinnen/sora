@@ -169,9 +169,6 @@ export const createColumns = (actions: {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => actions.onRead(article._id)}>
-              Read article
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => actions.onAddTag(article._id)}>
               Add tag
             </DropdownMenuItem>
