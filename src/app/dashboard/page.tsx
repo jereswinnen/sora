@@ -87,6 +87,7 @@ function Dashboard() {
   );
   const [loading, setLoading] = useState(false);
   const [addTagDialogOpen, setAddTagDialogOpen] = useState(false);
+  const [addArticleDialogOpen, setAddArticleDialogOpen] = useState(false);
 
   // Convex hooks
   const articles = useQuery(api.articles.listArticles, { limit: 100 });
@@ -106,6 +107,7 @@ function Dashboard() {
       toast.success("Article saved successfully!");
       setUrl("");
       setTags("");
+      setAddArticleDialogOpen(false);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to save article",
@@ -245,7 +247,7 @@ function Dashboard() {
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Link copied to clipboard!");
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy link");
     }
   };
@@ -295,72 +297,15 @@ function Dashboard() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Sora</h1>
-          <Button variant="outline" onClick={handleSignOut}>
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setAddArticleDialogOpen(true)}>
+              Add Article
+            </Button>
+            <Button variant="outline" onClick={handleSignOut}>
+              Sign Out
+            </Button>
+          </div>
         </div>
-
-        {/* Save Article Form */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Save New Article</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSaveArticle} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="article-url">Article URL</Label>
-                <Input
-                  id="article-url"
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com/article"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags (comma-separated)</Label>
-                <Input
-                  id="tags"
-                  type="text"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder="tech, news, important"
-                  list="tag-suggestions"
-                />
-                <datalist id="tag-suggestions">
-                  {allTags?.map((tag) => (
-                    <option key={tag._id} value={tag.displayName}>
-                      {tag.displayName} ({tag.count})
-                    </option>
-                  ))}
-                </datalist>
-                {allTags && allTags.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium">Existing tags:</span>{" "}
-                    {allTags.slice(0, 10).map((tag, idx) => (
-                      <span key={tag._id}>
-                        {idx > 0 && ", "}
-                        {tag.displayName} ({tag.count})
-                      </span>
-                    ))}
-                    {allTags.length > 10 && "..."}
-                  </p>
-                )}
-              </div>
-              <Button type="submit" disabled={loading || !url}>
-                {loading ? (
-                  <>
-                    <Spinner />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Article"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
 
         {/* Articles DataTable */}
         <Card>
@@ -513,6 +458,85 @@ function Dashboard() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Add Article Dialog */}
+        <Dialog
+          open={addArticleDialogOpen}
+          onOpenChange={setAddArticleDialogOpen}
+        >
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>Add New Article</DialogTitle>
+              <DialogDescription>
+                Enter the URL of the article you want to save. We&apos;ll automatically fetch the title, content, and metadata.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSaveArticle} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="article-url">Article URL</Label>
+                <Input
+                  id="article-url"
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://example.com/article"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tags">Tags (comma-separated)</Label>
+                <Input
+                  id="tags"
+                  type="text"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="tech, news, important"
+                  list="tag-suggestions-dialog"
+                />
+                <datalist id="tag-suggestions-dialog">
+                  {allTags?.map((tag) => (
+                    <option key={tag._id} value={tag.displayName}>
+                      {tag.displayName} ({tag.count})
+                    </option>
+                  ))}
+                </datalist>
+                {allTags && allTags.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Suggestions: {allTags.slice(0, 5).map((tag, idx) => (
+                      <span key={tag._id}>
+                        {idx > 0 && ", "}
+                        {tag.displayName}
+                      </span>
+                    ))}
+                  </p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setAddArticleDialogOpen(false);
+                    setUrl("");
+                    setTags("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading || !url}>
+                  {loading ? (
+                    <>
+                      <Spinner />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Article"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
