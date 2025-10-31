@@ -249,70 +249,55 @@ export default function ArticlesPage() {
     <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Articles</h1>
         <Button onClick={() => setAddArticleDialogOpen(true)}>
           Add Article
         </Button>
       </div>
 
       {/* Articles DataTable */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Saved Articles ({articles?.length || 0})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {articles === undefined ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Spinner />
-              <p>Loading articles...</p>
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={tableData}
-              searchColumn="title"
-              searchPlaceholder="Filter by title..."
-              bulkActions={({ selectedRows, table }) => (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const ids = selectedRows.map((row: Article) => row._id);
-                      handleBulkMarkAsRead(ids);
-                      table.toggleAllPageRowsSelected(false);
-                    }}
-                  >
-                    Mark as Read
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const ids = selectedRows.map((row: Article) => row._id);
-                      handleBulkArchive(ids);
-                      table.toggleAllPageRowsSelected(false);
-                    }}
-                  >
-                    Archive
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      const ids = selectedRows.map((row: Article) => row._id);
-                      handleBulkDelete(ids);
-                      table.toggleAllPageRowsSelected(false);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </>
-              )}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={columns}
+        data={tableData}
+        searchColumn="title"
+        searchPlaceholder="Filter by title..."
+        bulkActions={({ selectedRows, table }) => (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const ids = selectedRows.map((row: Article) => row._id);
+                handleBulkMarkAsRead(ids);
+                table.toggleAllPageRowsSelected(false);
+              }}
+            >
+              Mark as Read
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const ids = selectedRows.map((row: Article) => row._id);
+                handleBulkArchive(ids);
+                table.toggleAllPageRowsSelected(false);
+              }}
+            >
+              Archive
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                const ids = selectedRows.map((row: Article) => row._id);
+                handleBulkDelete(ids);
+                table.toggleAllPageRowsSelected(false);
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        )}
+      />
 
       {/* Add Tag Dialog */}
       <Dialog open={addTagDialogOpen} onOpenChange={setAddTagDialogOpen}>
@@ -416,7 +401,8 @@ export default function ArticlesPage() {
           <DialogHeader>
             <DialogTitle>Add New Article</DialogTitle>
             <DialogDescription>
-              Enter the URL of the article you want to save. We&apos;ll automatically fetch the title, content, and metadata.
+              Enter the URL of the article you want to save. We&apos;ll
+              automatically fetch the title, content, and metadata.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveArticle} className="space-y-4">
@@ -450,7 +436,8 @@ export default function ArticlesPage() {
               </datalist>
               {allTags && allTags.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Suggestions: {allTags.slice(0, 5).map((tag, idx) => (
+                  Suggestions:{" "}
+                  {allTags.slice(0, 5).map((tag, idx) => (
                     <span key={tag._id}>
                       {idx > 0 && ", "}
                       {tag.displayName}
