@@ -4,7 +4,7 @@ import { ConvexClientProvider } from "@/components/providers/ConvexClientProvide
 import { ToasterProvider } from "@/components/providers/ToasterProvider";
 
 export const metadata: Metadata = {
-  title: "Sora - Article Manager",
+  title: "Sora",
   description: "Save and manage articles to read later",
 };
 
