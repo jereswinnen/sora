@@ -32,8 +32,8 @@ export type Article = {
 
 export const createColumns = (actions: {
   onRead: (id: Id<"articles">) => void;
-  onMarkAsRead: (id: Id<"articles">) => void;
-  onArchive: (id: Id<"articles">) => void;
+  onToggleRead: (id: Id<"articles">, isRead: boolean) => void;
+  onToggleArchive: (id: Id<"articles">, isArchived: boolean) => void;
   onDelete: (id: Id<"articles">) => void;
   onAddTag: (id: Id<"articles">) => void;
 }): ColumnDef<Article>[] => [
@@ -173,11 +173,15 @@ export const createColumns = (actions: {
               Add tag
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => actions.onMarkAsRead(article._id)}>
-              Mark as read
+            <DropdownMenuItem
+              onClick={() => actions.onToggleRead(article._id, !!article.readAt)}
+            >
+              {article.readAt ? "Mark as unread" : "Mark as read"}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => actions.onArchive(article._id)}>
-              Archive
+            <DropdownMenuItem
+              onClick={() => actions.onToggleArchive(article._id, !!article.archived)}
+            >
+              {article.archived ? "Unarchive" : "Archive"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

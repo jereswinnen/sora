@@ -161,21 +161,31 @@ function Dashboard() {
     }
   };
 
-  const handleMarkAsRead = async (articleId: Id<"articles">) => {
+  const handleToggleRead = async (articleId: Id<"articles">, isCurrentlyRead: boolean) => {
     try {
-      await updateArticle({ articleId, readAt: Date.now() });
-      toast.success("Article marked as read!");
+      if (isCurrentlyRead) {
+        await updateArticle({ articleId, readAt: null });
+        toast.success("Article marked as unread!");
+      } else {
+        await updateArticle({ articleId, readAt: Date.now() });
+        toast.success("Article marked as read!");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update article");
     }
   };
 
-  const handleArchive = async (articleId: Id<"articles">) => {
+  const handleToggleArchive = async (articleId: Id<"articles">, isCurrentlyArchived: boolean) => {
     try {
-      await updateArticle({ articleId, archived: true });
-      toast.success("Article archived!");
+      if (isCurrentlyArchived) {
+        await updateArticle({ articleId, archived: false });
+        toast.success("Article unarchived!");
+      } else {
+        await updateArticle({ articleId, archived: true });
+        toast.success("Article archived!");
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to archive article");
+      toast.error(err instanceof Error ? err.message : "Failed to update article");
     }
   };
 
@@ -199,8 +209,8 @@ function Dashboard() {
 
   const columns = createColumns({
     onRead: (id) => router.push(`/article/${id}`),
-    onMarkAsRead: handleMarkAsRead,
-    onArchive: handleArchive,
+    onToggleRead: handleToggleRead,
+    onToggleArchive: handleToggleArchive,
     onDelete: (id) => setDeleteArticleId(id),
     onAddTag: (id) => {
       setSelectedArticleId(id);

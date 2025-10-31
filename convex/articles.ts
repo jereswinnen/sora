@@ -338,7 +338,7 @@ export const removeTag = mutation({
 export const updateArticle = mutation({
   args: {
     articleId: v.id("articles"),
-    readAt: v.optional(v.number()),
+    readAt: v.optional(v.union(v.number(), v.null())),
     archived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -361,7 +361,10 @@ export const updateArticle = mutation({
 
     // Update fields
     const updates: Partial<typeof article> = {};
-    if (args.readAt !== undefined) updates.readAt = args.readAt;
+    if (args.readAt !== undefined) {
+      // null means clear the field, number means set it
+      updates.readAt = args.readAt === null ? undefined : args.readAt;
+    }
     if (args.archived !== undefined) updates.archived = args.archived;
 
     await ctx.db.patch(args.articleId, updates);
