@@ -27,6 +27,7 @@ export type Article = {
   savedAt: number;
   readAt?: number;
   archived?: boolean;
+  favorited?: boolean;
   tags: string[];
 };
 
@@ -34,6 +35,9 @@ export const createColumns = (actions: {
   onRead: (id: Id<"articles">) => void;
   onToggleRead: (id: Id<"articles">, isRead: boolean) => void;
   onToggleArchive: (id: Id<"articles">, isArchived: boolean) => void;
+  onToggleFavorite: (id: Id<"articles">, isFavorited: boolean) => void;
+  onCopyLink: (url: string) => void;
+  onViewInBrowser: (url: string) => void;
   onDelete: (id: Id<"articles">) => void;
   onAddTag: (id: Id<"articles">) => void;
 }): ColumnDef<Article>[] => [
@@ -167,19 +171,39 @@ export const createColumns = (actions: {
               <span className="sr-only">Open menu</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => actions.onCopyLink(article.url)}>
+              Copy link
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => actions.onViewInBrowser(article.url)}
+            >
+              View original
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => actions.onAddTag(article._id)}>
               Add tag
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                actions.onToggleFavorite(article._id, !!article.favorited)
+              }
+            >
+              {article.favorited ? "Unfavorite" : "Favorite"}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => actions.onToggleRead(article._id, !!article.readAt)}
+              onClick={() =>
+                actions.onToggleRead(article._id, !!article.readAt)
+              }
             >
               {article.readAt ? "Mark as unread" : "Mark as read"}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => actions.onToggleArchive(article._id, !!article.archived)}
+              onClick={() =>
+                actions.onToggleArchive(article._id, !!article.archived)
+              }
             >
               {article.archived ? "Unarchive" : "Archive"}
             </DropdownMenuItem>

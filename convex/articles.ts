@@ -340,6 +340,7 @@ export const updateArticle = mutation({
     articleId: v.id("articles"),
     readAt: v.optional(v.union(v.number(), v.null())),
     archived: v.optional(v.boolean()),
+    favorited: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Get authenticated user ID
@@ -366,6 +367,7 @@ export const updateArticle = mutation({
       updates.readAt = args.readAt === null ? undefined : args.readAt;
     }
     if (args.archived !== undefined) updates.archived = args.archived;
+    if (args.favorited !== undefined) updates.favorited = args.favorited;
 
     await ctx.db.patch(args.articleId, updates);
 

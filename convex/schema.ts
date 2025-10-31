@@ -34,6 +34,7 @@ const schema = defineSchema({
     savedAt: v.number(),
     readAt: v.optional(v.number()),
     archived: v.optional(v.boolean()),
+    favorited: v.optional(v.boolean()),
     tags: v.array(v.string()),
   })
     .index("by_user", ["userId"])
