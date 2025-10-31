@@ -271,6 +271,7 @@ function Dashboard() {
       readAt: article.readAt,
       archived: article.archived,
       favorited: article.favorited,
+      readingTimeMinutes: article.readingTimeMinutes,
       tags: article.tags,
     })) ?? [];
 

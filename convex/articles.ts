@@ -38,6 +38,7 @@ export const saveArticle = action({
       imageUrl: parsed.imageUrl,
       author: parsed.author,
       publishedAt: parsed.publishedAt,
+      readingTimeMinutes: parsed.readingTimeMinutes,
       tags: args.tags || [],
     });
 
@@ -60,6 +61,7 @@ export const saveArticleToDB = mutation({
     imageUrl: v.optional(v.string()),
     author: v.optional(v.string()),
     publishedAt: v.optional(v.number()),
+    readingTimeMinutes: v.number(),
     tags: v.array(v.string()),
   },
   handler: async (ctx, args) => {
@@ -111,6 +113,7 @@ export const saveArticleToDB = mutation({
       imageUrl: args.imageUrl,
       author: args.author,
       publishedAt: args.publishedAt,
+      readingTimeMinutes: args.readingTimeMinutes,
       savedAt: Date.now(),
       tags: uniqueTags,
     });

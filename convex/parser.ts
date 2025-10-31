@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
+import { calculateReadingTime } from "./utils/readingTime";
 
 /**
  * Parsed article data structure
@@ -12,6 +13,7 @@ export interface ParsedArticle {
   imageUrl?: string;
   author?: string;
   publishedAt?: number;
+  readingTimeMinutes: number;
 }
 
 /**
@@ -65,6 +67,9 @@ export async function parseArticle(url: string): Promise<ParsedArticle> {
     // Convert relative URLs in Readability output
     const contentWithAbsoluteUrls = convertUrlsInHtmlString(article.content || "", url);
 
+    // Calculate reading time from the text content
+    const readingTimeMinutes = calculateReadingTime(article.textContent || "");
+
     return {
       title: metaTitle || article.title || "Untitled", // Prefer meta tag title
       content: contentWithAbsoluteUrls,
@@ -72,6 +77,7 @@ export async function parseArticle(url: string): Promise<ParsedArticle> {
       imageUrl,
       author: author || article.byline || undefined, // Prefer meta tag author
       publishedAt,
+      readingTimeMinutes,
     };
   } catch (error) {
     if (error instanceof Error) {

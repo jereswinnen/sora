@@ -32,6 +32,7 @@ export const saveArticleForUser = internalMutation({
     imageUrl: v.optional(v.string()),
     author: v.optional(v.string()),
     publishedAt: v.optional(v.number()),
+    readingTimeMinutes: v.number(),
     tags: v.array(v.string()),
   },
   handler: async (ctx, args) => {
@@ -86,6 +87,7 @@ export const saveArticleForUser = internalMutation({
       imageUrl: args.imageUrl,
       author: args.author,
       publishedAt: args.publishedAt,
+      readingTimeMinutes: args.readingTimeMinutes,
       savedAt: Date.now(),
       tags: uniqueTags,
     });

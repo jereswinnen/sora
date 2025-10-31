@@ -28,6 +28,7 @@ export type Article = {
   readAt?: number;
   archived?: boolean;
   favorited?: boolean;
+  readingTimeMinutes?: number;
   tags: string[];
 };
 
@@ -70,6 +71,16 @@ export const createColumns = (actions: {
     ),
     cell: ({ row }) => {
       const article = row.original;
+      const metadata = [];
+
+      if (article.readingTimeMinutes) {
+        metadata.push(`${article.readingTimeMinutes} min`);
+      }
+
+      if (article.author) {
+        metadata.push(article.author);
+      }
+
       return (
         <div className="flex flex-col">
           <button
@@ -78,9 +89,9 @@ export const createColumns = (actions: {
           >
             {article.title}
           </button>
-          {article.author && (
+          {metadata.length > 0 && (
             <div className="text-xs text-muted-foreground">
-              by {article.author}
+              {metadata.join(" · ")}
             </div>
           )}
         </div>

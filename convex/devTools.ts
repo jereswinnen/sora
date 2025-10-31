@@ -122,6 +122,10 @@ const DEFAULT_DUMMY_ARTICLES = [
     url: "https://samwarnick.com/blog/migrating-samwarnick-com-to-be-self-hosted/",
     tags: ["web development"],
   },
+  {
+    url: "https://www.anildash.com//2025/10/22/atlas-anti-web-browser/",
+    tags: ["AI"],
+  },
 ];
 
 /**
@@ -177,7 +181,9 @@ export const addDummyData = action({
       );
     }
 
-    console.log(`Adding ${articles.length} dummy articles for user: ${user._id}`);
+    console.log(
+      `Adding ${articles.length} dummy articles for user: ${user._id}`,
+    );
 
     const results = {
       successful: 0,
@@ -204,11 +210,14 @@ export const addDummyData = action({
           imageUrl: parsed.imageUrl,
           author: parsed.author,
           publishedAt: parsed.publishedAt,
+          readingTimeMinutes: parsed.readingTimeMinutes,
           tags: article.tags,
         });
 
         results.successful++;
-        console.log(`✓ Successfully saved: ${article.url} (tags: ${article.tags.join(", ")})`);
+        console.log(
+          `✓ Successfully saved: ${article.url} (tags: ${article.tags.join(", ")})`,
+        );
       } catch (error) {
         results.failed++;
         const errorMsg = `✗ Failed to save ${article.url}: ${error}`;
