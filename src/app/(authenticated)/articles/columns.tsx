@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { Id } from "../../../convex/_generated/dataModel";
+import { Id } from "../../../../convex/_generated/dataModel";
 
 // Define the shape of an article as returned by the query
 export type Article = {
