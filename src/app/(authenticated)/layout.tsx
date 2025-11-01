@@ -6,24 +6,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Separator } from "@/components/ui/separator";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { HeaderProvider, useHeaderAction } from "@/components/layout-header-context";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { signOut } = useAuthActions();
-  const router = useRouter();
+function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/auth");
-  };
+  const { headerAction } = useHeaderAction();
 
   // Get page title based on current path
   const getPageTitle = () => {
@@ -43,13 +32,27 @@ export default function DashboardLayout({
               <SidebarTrigger />
               <h1 className="text-xl font-bold">{getPageTitle()}</h1>
             </div>
-            <Button variant="outline" onClick={handleSignOut}>
-              Sign Out
-            </Button>
+            {headerAction && (
+              <Button onClick={headerAction.onClick}>
+                {headerAction.label}
+              </Button>
+            )}
           </div>
         </header>
         {children}
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <HeaderProvider>
+      <LayoutContent>{children}</LayoutContent>
+    </HeaderProvider>
   );
 }

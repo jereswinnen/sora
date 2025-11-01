@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
+import { useHeaderAction } from "@/components/layout-header-context";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,7 @@ import { createColumns, Article } from "./columns";
 
 export default function ArticlesPage() {
   const router = useRouter();
+  const { setHeaderAction } = useHeaderAction();
 
   const [url, setUrl] = useState("");
   const [tags, setTags] = useState("");
@@ -51,6 +53,15 @@ export default function ArticlesPage() {
   const articles = useQuery(api.articles.listArticles, { limit: 100 });
   const allTags = useQuery(api.tags.getAllTags);
   const saveArticle = useAction(api.articles.saveArticle);
+
+  // Set header action for this page
+  useEffect(() => {
+    setHeaderAction({
+      label: "Add Article",
+      onClick: () => setAddArticleDialogOpen(true),
+    });
+    return () => setHeaderAction(null);
+  }, [setHeaderAction]);
   const deleteArticle = useMutation(api.articles.deleteArticle);
   const addTag = useMutation(api.articles.addTag);
   const updateArticle = useMutation(api.articles.updateArticle);
@@ -246,13 +257,6 @@ export default function ArticlesPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <Button onClick={() => setAddArticleDialogOpen(true)}>
-          Add Article
-        </Button>
-      </div>
-
       {/* Articles DataTable */}
       <DataTable
         columns={columns}
