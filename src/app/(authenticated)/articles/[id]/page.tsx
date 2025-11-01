@@ -8,7 +8,6 @@ import { use, useEffect, useState } from "react";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,10 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,16 +29,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import {
-  ArrowLeftIcon,
-  HeartIcon,
+  StarIcon,
   ArchiveIcon,
   MoreHorizontalIcon,
-  LinkIcon,
-  ExternalLinkIcon,
   TagIcon,
   Trash2Icon,
+  CompassIcon,
+  ClipboardCopyIcon,
 } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function ArticlePage({
@@ -72,32 +66,106 @@ export default function ArticlePage({
     handleViewInBrowser,
   } = useArticleActions();
 
-  // Clear header action on mount
+  // Set header action with article controls
   useEffect(() => {
-    setHeaderAction(null);
+    if (!article) {
+      setHeaderAction(null);
+      return;
+    }
+
+    const articleId = id as Id<"articles">;
+    const isFavorited = article.favorited || false;
+    const isArchived = article.archived || false;
+    const articleUrl = article.url;
+    const hasTags = article.tags.length > 0;
+
+    setHeaderAction({
+      component: (
+        <div className="flex items-center gap-2">
+          <ToggleGroup
+            type="multiple"
+            variant="outline"
+            spacing={0}
+            size="sm"
+            value={[
+              isFavorited ? "favorite" : "",
+              isArchived ? "archive" : "",
+            ].filter(Boolean)}
+          >
+            <ToggleGroupItem
+              value="favorite"
+              aria-label="Toggle favorite"
+              onClick={() => toggleFavorite(articleId, isFavorited)}
+              className={cn(
+                "data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500",
+              )}
+            >
+              <StarIcon />
+              Favorite
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="archive"
+              aria-label="Toggle archive"
+              onClick={() => toggleArchive(articleId, isArchived)}
+              className={cn(
+                "data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-blue-500 data-[state=on]:*:[svg]:stroke-blue-500",
+              )}
+            >
+              <ArchiveIcon />
+              Archive
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" aria-label="More Options">
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => handleCopyLink(articleUrl)}>
+                  <ClipboardCopyIcon />
+                  Copy Link
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleViewInBrowser(articleUrl)}
+                >
+                  <CompassIcon />
+                  View Original
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => setTagsDialogOpen(true)}>
+                  <TagIcon />
+                  {hasTags ? "Edit Tags" : "Add Tags"}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2Icon />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    });
+
     return () => setHeaderAction(null);
-  }, [setHeaderAction]);
-
-  // Wrapper handlers to simplify usage
-  const handleToggleFavorite = () => {
-    if (!article) return;
-    toggleFavorite(id as Id<"articles">, article.favorited || false);
-  };
-
-  const handleToggleArchive = () => {
-    if (!article) return;
-    toggleArchive(id as Id<"articles">, article.archived || false);
-  };
-
-  const handleViewOriginal = () => {
-    if (!article) return;
-    handleViewInBrowser(article.url);
-  };
-
-  const handleCopyArticleLink = () => {
-    if (!article) return;
-    handleCopyLink(article.url);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    id,
+    article?.favorited,
+    article?.archived,
+    article?.url,
+    article?.tags?.length,
+  ]);
 
   const handleDelete = async () => {
     try {
@@ -138,92 +206,9 @@ export default function ArticlePage({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-background border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push("/articles")}
-            aria-label="Go Back"
-          >
-            <ArrowLeftIcon />
-          </Button>
-
-          <ButtonGroup className="ml-auto">
-            <ToggleGroup
-              type="multiple"
-              variant="outline"
-              spacing={0}
-              value={[
-                article.favorited ? "favorite" : "",
-                article.archived ? "archive" : "",
-              ].filter(Boolean)}
-            >
-              <ToggleGroupItem
-                value="favorite"
-                aria-label="Toggle favorite"
-                onClick={handleToggleFavorite}
-                className={cn(
-                  "data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-red-500 data-[state=on]:*:[svg]:stroke-red-500"
-                )}
-              >
-                <HeartIcon />
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="archive"
-                aria-label="Toggle archive"
-                onClick={handleToggleArchive}
-                className={cn(
-                  "data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-blue-500 data-[state=on]:*:[svg]:stroke-blue-500"
-                )}
-              >
-                <ArchiveIcon />
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="More Options">
-                  <MoreHorizontalIcon />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={handleCopyArticleLink}>
-                    <LinkIcon />
-                    Copy Link
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleViewOriginal}>
-                    <ExternalLinkIcon />
-                    View Original
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setTagsDialogOpen(true)}>
-                    <TagIcon />
-                    Add/Edit Tags
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => setDeleteDialogOpen(true)}
-                  >
-                    <Trash2Icon />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </ButtonGroup>
-        </div>
-      </div>
-
+    <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Article Content */}
-      <article className="max-w-4xl mx-auto px-4 py-8">
+      <article className="max-w-4xl mx-auto px-4 py-8 w-full">
         {/* Header Image */}
         {article.imageUrl && (
           <div className="mb-8">
@@ -369,16 +354,13 @@ export default function ArticlePage({
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-      >
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Article</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this article? This action cannot be
-              undone.
+              Are you sure you want to delete this article? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

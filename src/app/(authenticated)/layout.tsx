@@ -6,21 +6,25 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { HeaderProvider, useHeaderAction } from "@/components/layout-header-context";
+import { ArrowLeftIcon } from "lucide-react";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { headerAction } = useHeaderAction();
 
+  // Check if we're on an article detail page
+  const isArticleDetailPage = pathname?.startsWith("/articles/") && pathname !== "/articles";
+
   // Get page title based on current path
-  const getPageTitle = () => {
-    if (pathname === "/dashboard") return "Dashboard";
-    if (pathname === "/articles") return "Articles";
-    if (pathname?.startsWith("/articles/")) return "Article";
-    return "Sora";
-  };
+  const pageTitle = pathname === "/dashboard"
+    ? "Dashboard"
+    : pathname === "/articles"
+    ? "Articles"
+    : "Sora";
 
   return (
     <SidebarProvider>
@@ -30,12 +34,30 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 px-4 w-full justify-between">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
-              <h1 className="text-xl font-bold">{getPageTitle()}</h1>
+              {isArticleDetailPage && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push("/articles")}
+                  aria-label="Go Back"
+                >
+                  <ArrowLeftIcon />
+                </Button>
+              )}
+              {!isArticleDetailPage && (
+                <h1 className="text-xl font-bold">{pageTitle}</h1>
+              )}
             </div>
             {headerAction && (
-              <Button onClick={headerAction.onClick}>
-                {headerAction.label}
-              </Button>
+              <>
+                {headerAction.component ? (
+                  headerAction.component
+                ) : (
+                  <Button onClick={headerAction.onClick}>
+                    {headerAction.label}
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </header>

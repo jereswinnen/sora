@@ -3,8 +3,9 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
 type HeaderAction = {
-  label: string;
-  onClick: () => void;
+  label?: string;
+  onClick?: () => void;
+  component?: React.ReactNode;
 } | null;
 
 type HeaderContextType = {
