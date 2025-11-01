@@ -4,7 +4,46 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { use } from "react";
+import { use, useEffect, useState } from "react";
+import { useHeaderAction } from "@/components/layout-header-context";
+import { useArticleActions } from "@/hooks/use-article-actions";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ManageTagsDialog } from "@/components/manage-tags-dialog";
+import {
+  ArrowLeftIcon,
+  HeartIcon,
+  ArchiveIcon,
+  MoreHorizontalIcon,
+  LinkIcon,
+  ExternalLinkIcon,
+  TagIcon,
+  Trash2Icon,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function ArticlePage({
   params,
@@ -13,10 +52,69 @@ export default function ArticlePage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { setHeaderAction } = useHeaderAction();
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
 
   const article = useQuery(api.articles.getArticle, {
     articleId: id as Id<"articles">,
   });
+  const allTags = useQuery(api.tags.getAllTags);
+
+  const {
+    handleToggleFavorite: toggleFavorite,
+    handleToggleArchive: toggleArchive,
+    handleDelete: deleteArticleAction,
+    handleAddTags: addTagsAction,
+    handleRemoveTag: removeTagAction,
+    handleCopyLink,
+    handleViewInBrowser,
+  } = useArticleActions();
+
+  // Clear header action on mount
+  useEffect(() => {
+    setHeaderAction(null);
+    return () => setHeaderAction(null);
+  }, [setHeaderAction]);
+
+  // Wrapper handlers to simplify usage
+  const handleToggleFavorite = () => {
+    if (!article) return;
+    toggleFavorite(id as Id<"articles">, article.favorited || false);
+  };
+
+  const handleToggleArchive = () => {
+    if (!article) return;
+    toggleArchive(id as Id<"articles">, article.archived || false);
+  };
+
+  const handleViewOriginal = () => {
+    if (!article) return;
+    handleViewInBrowser(article.url);
+  };
+
+  const handleCopyArticleLink = () => {
+    if (!article) return;
+    handleCopyLink(article.url);
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteArticleAction(id as Id<"articles">);
+      router.push("/articles");
+    } catch {
+      // Error already handled by the hook
+    }
+  };
+
+  const handleAddTags = async (tags: string[]) => {
+    await addTagsAction(id as Id<"articles">, tags, article?.tags || []);
+  };
+
+  const handleRemoveTag = async (tag: string) => {
+    await removeTagAction(id as Id<"articles">, tag);
+  };
 
   if (article === undefined) {
     return (
@@ -31,12 +129,9 @@ export default function ArticlePage({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-lg mb-4">Article not found</p>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-          >
-            Back to Dashboard
-          </button>
+          <Button onClick={() => router.push("/articles")}>
+            Back to Articles
+          </Button>
         </div>
       </div>
     );
@@ -45,22 +140,85 @@ export default function ArticlePage({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded"
+      <div className="bg-background border-b sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push("/articles")}
+            aria-label="Go Back"
           >
-            ← Back
-          </button>
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded"
-          >
-            View Original
-          </a>
+            <ArrowLeftIcon />
+          </Button>
+
+          <ButtonGroup className="ml-auto">
+            <ToggleGroup
+              type="multiple"
+              variant="outline"
+              spacing={0}
+              value={[
+                article.favorited ? "favorite" : "",
+                article.archived ? "archive" : "",
+              ].filter(Boolean)}
+            >
+              <ToggleGroupItem
+                value="favorite"
+                aria-label="Toggle favorite"
+                onClick={handleToggleFavorite}
+                className={cn(
+                  "data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-red-500 data-[state=on]:*:[svg]:stroke-red-500"
+                )}
+              >
+                <HeartIcon />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="archive"
+                aria-label="Toggle archive"
+                onClick={handleToggleArchive}
+                className={cn(
+                  "data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-blue-500 data-[state=on]:*:[svg]:stroke-blue-500"
+                )}
+              >
+                <ArchiveIcon />
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More Options">
+                  <MoreHorizontalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={handleCopyArticleLink}>
+                    <LinkIcon />
+                    Copy Link
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleViewOriginal}>
+                    <ExternalLinkIcon />
+                    View Original
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setTagsDialogOpen(true)}>
+                    <TagIcon />
+                    Add/Edit Tags
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Trash2Icon />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ButtonGroup>
         </div>
       </div>
 
@@ -198,6 +356,44 @@ export default function ArticlePage({
           margin: 2em 0;
         }
       `}</style>
+
+      {/* Manage Tags Dialog */}
+      <ManageTagsDialog
+        open={tagsDialogOpen}
+        onOpenChange={setTagsDialogOpen}
+        currentTags={article?.tags || []}
+        availableTags={allTags}
+        onAddTags={handleAddTags}
+        onRemoveTag={handleRemoveTag}
+        contentType="article"
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Article</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this article? This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className={cn(buttonVariants({ variant: "destructive" }))}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

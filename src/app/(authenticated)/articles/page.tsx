@@ -6,6 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useHeaderAction } from "@/components/layout-header-context";
+import { useArticleActions } from "@/hooks/use-article-actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,6 +63,18 @@ export default function ArticlesPage() {
   );
   const saveArticle = useAction(api.articles.saveArticle);
 
+  // Get shared article actions
+  const {
+    handleToggleFavorite,
+    handleToggleArchive,
+    handleToggleRead,
+    handleDelete: handleDeleteAction,
+    handleAddTags: handleAddTagsAction,
+    handleRemoveTag: handleRemoveTagAction,
+    handleCopyLink,
+    handleViewInBrowser,
+  } = useArticleActions();
+
   // Set header action for this page
   useEffect(() => {
     setHeaderAction({
@@ -70,10 +83,10 @@ export default function ArticlesPage() {
     });
     return () => setHeaderAction(null);
   }, [setHeaderAction]);
-  const deleteArticle = useMutation(api.articles.deleteArticle);
-  const addTag = useMutation(api.articles.addTag);
-  const removeTag = useMutation(api.articles.removeTag);
+
+  // Keep updateArticle for bulk operations
   const updateArticle = useMutation(api.articles.updateArticle);
+  const deleteArticle = useMutation(api.articles.deleteArticle);
 
   const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,13 +124,10 @@ export default function ArticlesPage() {
 
   const handleDeleteArticle = async (articleId: Id<"articles">) => {
     try {
-      await deleteArticle({ articleId });
-      toast.success("Article deleted!");
+      await handleDeleteAction(articleId);
       setDeleteArticleId(null);
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete article",
-      );
+    } catch {
+      // Error already handled by hook
     }
   };
 
@@ -166,120 +176,16 @@ export default function ArticlesPage() {
 
   const handleAddTags = async (tags: string[]) => {
     if (!selectedArticleId || tags.length === 0) return;
-
-    try {
-      // Filter out tags that already exist on the article (client-side optimization)
-      const existingTags = selectedArticle?.tags || [];
-      const newTags = tags.filter(
-        (tag) =>
-          !existingTags.some(
-            (existingTag) => existingTag.toLowerCase() === tag.toLowerCase(),
-          ),
-      );
-
-      if (newTags.length === 0) {
-        toast.info("All selected tags are already on this article");
-        return;
-      }
-
-      // Add tags (backend will handle any remaining duplicates gracefully)
-      const results = await Promise.all(
-        newTags.map((tag) => addTag({ articleId: selectedArticleId, tag })),
-      );
-
-      // Count how many were actually added
-      const addedCount = results.filter((r) => !r.alreadyExists).length;
-
-      if (addedCount > 0) {
-        toast.success(
-          `${addedCount} tag${addedCount > 1 ? "s" : ""} added!`,
-        );
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add tags");
-      throw err; // Re-throw so the dialog knows it failed
-    }
+    await handleAddTagsAction(
+      selectedArticleId,
+      tags,
+      selectedArticle?.tags || []
+    );
   };
 
   const handleRemoveTag = async (tag: string) => {
     if (!selectedArticleId) return;
-
-    try {
-      await removeTag({ articleId: selectedArticleId, tag });
-      toast.success("Tag removed!");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to remove tag");
-    }
-  };
-
-  const handleToggleRead = async (
-    articleId: Id<"articles">,
-    isCurrentlyRead: boolean,
-  ) => {
-    try {
-      if (isCurrentlyRead) {
-        await updateArticle({ articleId, readAt: null });
-        toast.success("Article marked as unread!");
-      } else {
-        await updateArticle({ articleId, readAt: Date.now() });
-        toast.success("Article marked as read!");
-      }
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update article",
-      );
-    }
-  };
-
-  const handleToggleArchive = async (
-    articleId: Id<"articles">,
-    isCurrentlyArchived: boolean,
-  ) => {
-    try {
-      if (isCurrentlyArchived) {
-        await updateArticle({ articleId, archived: false });
-        toast.success("Article unarchived!");
-      } else {
-        await updateArticle({ articleId, archived: true });
-        toast.success("Article archived!");
-      }
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update article",
-      );
-    }
-  };
-
-  const handleToggleFavorite = async (
-    articleId: Id<"articles">,
-    isCurrentlyFavorited: boolean,
-  ) => {
-    try {
-      if (isCurrentlyFavorited) {
-        await updateArticle({ articleId, favorited: false });
-        toast.success("Removed from favorites!");
-      } else {
-        await updateArticle({ articleId, favorited: true });
-        toast.success("Added to favorites!");
-      }
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update article",
-      );
-    }
-  };
-
-  const handleCopyLink = async (url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copied to clipboard!");
-    } catch {
-      toast.error("Failed to copy link");
-    }
-  };
-
-  const handleViewInBrowser = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
+    await handleRemoveTagAction(selectedArticleId, tag);
   };
 
   // Transform articles data to match the Article type
