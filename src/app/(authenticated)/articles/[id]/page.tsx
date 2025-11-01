@@ -8,6 +8,7 @@ import { use, useEffect, useState } from "react";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { AppearancePopover, type AppearanceSettings } from "@/components/appearance-popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +51,18 @@ export default function ArticlePage({
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
+
+  // Appearance settings state
+  const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>({
+    theme: "sans",
+    titleSize: 32,
+    titleLeading: 1.3,
+    titleAlignment: "left",
+    bodySize: 18,
+    bodyLeading: 1.8,
+    margins: "normal",
+    justifyText: false,
+  });
 
   const article = useQuery(api.articles.getArticle, {
     articleId: id as Id<"articles">,
@@ -115,6 +128,10 @@ export default function ArticlePage({
               Archive
             </ToggleGroupItem>
           </ToggleGroup>
+          <AppearancePopover
+            settings={appearanceSettings}
+            onSettingsChange={setAppearanceSettings}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" aria-label="More Options">
@@ -165,6 +182,7 @@ export default function ArticlePage({
     article?.archived,
     article?.url,
     article?.tags?.length,
+    appearanceSettings,
   ]);
 
   const handleDelete = async () => {
@@ -205,12 +223,29 @@ export default function ArticlePage({
     );
   }
 
+  // Apply margin class based on settings
+  const marginClass =
+    appearanceSettings.margins === "narrow"
+      ? "max-w-3xl"
+      : appearanceSettings.margins === "wide"
+      ? "max-w-5xl"
+      : "max-w-4xl";
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Article Content */}
       <article
-        className="article-content mx-auto w-full max-w-4xl"
-        data-articletheme="sans"
+        className={`article-content mx-auto w-full ${marginClass}`}
+        data-articletheme={appearanceSettings.theme}
+        style={
+          {
+            "--article-title-size": `${appearanceSettings.titleSize}px`,
+            "--article-title-line-height": appearanceSettings.titleLeading,
+            "--article-title-align": appearanceSettings.titleAlignment,
+            "--article-font-size": `${appearanceSettings.bodySize}px`,
+            "--article-line-height": appearanceSettings.bodyLeading,
+          } as React.CSSProperties
+        }
       >
         {/* Header Image */}
         {article.imageUrl && (
@@ -224,7 +259,7 @@ export default function ArticlePage({
         )}
 
         {/* Title */}
-        <h1>{article.title}</h1>
+        <h1 className="article-title">{article.title}</h1>
 
         {/* Metadata */}
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-8 pb-8 border-b">
@@ -244,7 +279,7 @@ export default function ArticlePage({
         <div className="prose prose-lg max-w-none">
           <div
             dangerouslySetInnerHTML={{ __html: article.content }}
-            className="article-content"
+            className={`article-body ${appearanceSettings.justifyText ? "text-justify" : ""}`}
           />
         </div>
       </article>

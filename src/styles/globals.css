@@ -206,19 +206,32 @@
 /* Base article content styles - uses CSS variables that themes define */
 .article-content {
   font-family: var(--article-font-family);
-  font-size: var(--article-font-size);
-  line-height: var(--article-line-height);
   color: var(--article-text-color);
 }
 
-.article-content p {
+/* Article title with dynamic sizing */
+.article-title {
+  font-size: var(--article-title-size, 32px) !important;
+  line-height: var(--article-title-line-height, 1.3) !important;
+  text-align: var(--article-title-align, left) !important;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* Article body with dynamic sizing */
+.article-body {
+  font-size: var(--article-font-size);
+  line-height: var(--article-line-height);
+}
+
+.article-body p {
   margin-bottom: var(--article-paragraph-spacing);
 }
 
-.article-content h1,
-.article-content h2,
-.article-content h3,
-.article-content h4 {
+.article-body h1,
+.article-body h2,
+.article-body h3,
+.article-body h4 {
   margin-top: var(--article-heading-margin-top);
   margin-bottom: var(--article-heading-margin-bottom);
   font-weight: 600;
@@ -226,38 +239,38 @@
   color: var(--article-heading-color);
 }
 
-.article-content h1 {
+.article-body h1 {
   font-size: 2em;
 }
 
-.article-content h2 {
+.article-body h2 {
   font-size: 1.5em;
 }
 
-.article-content h3 {
+.article-body h3 {
   font-size: 1.25em;
 }
 
-.article-content ul,
-.article-content ol {
+.article-body ul,
+.article-body ol {
   margin-left: 2em;
   margin-bottom: var(--article-paragraph-spacing);
 }
 
-.article-content li {
+.article-body li {
   margin-bottom: 0.5em;
 }
 
-.article-content a {
+.article-body a {
   color: var(--article-link-color);
   text-decoration: underline;
 }
 
-.article-content a:hover {
+.article-body a:hover {
   color: var(--article-link-hover-color);
 }
 
-.article-content blockquote {
+.article-body blockquote {
   border-left: 4px solid var(--article-blockquote-border);
   padding-left: 1.5em;
   margin-left: 0;
@@ -266,7 +279,7 @@
   color: var(--article-blockquote-color);
 }
 
-.article-content code {
+.article-body code {
   background-color: var(--article-code-bg);
   padding: 0.2em 0.4em;
   border-radius: 3px;
@@ -274,7 +287,7 @@
   font-family: monospace;
 }
 
-.article-content pre {
+.article-body pre {
   background-color: var(--article-code-bg);
   padding: 1em;
   border-radius: 6px;
@@ -282,12 +295,12 @@
   margin-bottom: var(--article-paragraph-spacing);
 }
 
-.article-content pre code {
+.article-body pre code {
   background-color: transparent;
   padding: 0;
 }
 
-.article-content img {
+.article-body img {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
