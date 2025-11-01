@@ -10,8 +10,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,14 +34,14 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { createColumns, Article } from "./columns";
+import { TagCombobox } from "@/components/ui/tag-combobox";
 
 export default function ArticlesPage() {
   const router = useRouter();
   const { setHeaderAction } = useHeaderAction();
 
   const [url, setUrl] = useState("");
-  const [tags, setTags] = useState("");
-  const [newTag, setNewTag] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedArticleId, setSelectedArticleId] =
     useState<Id<"articles"> | null>(null);
   const [deleteArticleId, setDeleteArticleId] = useState<Id<"articles"> | null>(
@@ -52,6 +54,10 @@ export default function ArticlesPage() {
   // Convex hooks
   const articles = useQuery(api.articles.listArticles, { limit: 100 });
   const allTags = useQuery(api.tags.getAllTags);
+  const selectedArticle = useQuery(
+    api.articles.getArticle,
+    selectedArticleId ? { articleId: selectedArticleId } : "skip",
+  );
   const saveArticle = useAction(api.articles.saveArticle);
 
   // Set header action for this page
@@ -64,6 +70,7 @@ export default function ArticlesPage() {
   }, [setHeaderAction]);
   const deleteArticle = useMutation(api.articles.deleteArticle);
   const addTag = useMutation(api.articles.addTag);
+  const removeTag = useMutation(api.articles.removeTag);
   const updateArticle = useMutation(api.articles.updateArticle);
 
   const handleSaveArticle = async (e: React.FormEvent) => {
@@ -71,11 +78,10 @@ export default function ArticlesPage() {
     setLoading(true);
 
     try {
-      const tagArray = tags ? tags.split(",").map((t) => t.trim()) : [];
-      await saveArticle({ url, tags: tagArray });
+      await saveArticle({ url, tags: selectedTags });
       toast.success("Article saved successfully!");
       setUrl("");
-      setTags("");
+      setSelectedTags([]);
       setAddArticleDialogOpen(false);
     } catch (err) {
       toast.error(
@@ -142,16 +148,46 @@ export default function ArticlesPage() {
   };
 
   const handleAddTag = async () => {
-    if (!selectedArticleId || !newTag) return;
+    if (!selectedArticleId || selectedTags.length === 0) return;
 
     try {
-      await addTag({ articleId: selectedArticleId, tag: newTag });
-      toast.success("Tag added!");
-      setNewTag("");
+      // Filter out tags that already exist on the article
+      const existingTags = selectedArticle?.tags || [];
+      const newTags = selectedTags.filter(
+        (tag) =>
+          !existingTags.some(
+            (existingTag) => existingTag.toLowerCase() === tag.toLowerCase(),
+          ),
+      );
+
+      if (newTags.length === 0) {
+        toast.info("All selected tags are already on this article");
+        return;
+      }
+
+      // Add only new tags
+      await Promise.all(
+        newTags.map((tag) => addTag({ articleId: selectedArticleId, tag })),
+      );
+      toast.success(
+        `${newTags.length} tag${newTags.length > 1 ? "s" : ""} added!`,
+      );
+      setSelectedTags([]);
       setSelectedArticleId(null);
       setAddTagDialogOpen(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add tag");
+      toast.error(err instanceof Error ? err.message : "Failed to add tags");
+    }
+  };
+
+  const handleRemoveTag = async (tag: string) => {
+    if (!selectedArticleId) return;
+
+    try {
+      await removeTag({ articleId: selectedArticleId, tag });
+      toast.success("Tag removed!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove tag");
     }
   };
 
@@ -302,50 +338,47 @@ export default function ArticlesPage() {
         )}
       />
 
-      {/* Add Tag Dialog */}
+      {/* Tags Dialog */}
       <Dialog open={addTagDialogOpen} onOpenChange={setAddTagDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Tag</DialogTitle>
+            <DialogTitle>Manage Tags</DialogTitle>
             <DialogDescription>
-              Add a tag to this article for better organization.
+              Add or remove tags to organize this article.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-tag">Tag Name</Label>
-              <Input
-                id="new-tag"
-                type="text"
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                placeholder="Enter tag name"
-                list="tag-suggestions-add"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-              />
-              <datalist id="tag-suggestions-add">
-                {allTags?.map((tag) => (
-                  <option key={tag._id} value={tag.displayName}>
-                    {tag.displayName} ({tag.count})
-                  </option>
-                ))}
-              </datalist>
-              {allTags && allTags.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Suggestions:{" "}
-                  {allTags.slice(0, 5).map((tag, idx) => (
-                    <span key={tag._id}>
-                      {idx > 0 && ", "}
-                      {tag.displayName}
-                    </span>
+            {/* Existing Tags */}
+            {selectedArticle && selectedArticle.tags.length > 0 && (
+              <div className="space-y-2">
+                <Label>Current Tags</Label>
+                <div className="flex flex-wrap gap-2">
+                  {selectedArticle.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1">
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-1 rounded-full hover:bg-muted"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
                   ))}
-                </p>
-              )}
+                </div>
+              </div>
+            )}
+
+            {/* Add New Tags */}
+            <div className="space-y-2">
+              <Label htmlFor="new-tag">Add Tags</Label>
+              <TagCombobox
+                availableTags={allTags}
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                placeholder="Select or create tags..."
+                emptyText="No tags found. Type to create new tags."
+              />
             </div>
           </div>
           <DialogFooter>
@@ -353,14 +386,14 @@ export default function ArticlesPage() {
               variant="outline"
               onClick={() => {
                 setAddTagDialogOpen(false);
-                setNewTag("");
+                setSelectedTags([]);
                 setSelectedArticleId(null);
               }}
             >
-              Cancel
+              Close
             </Button>
-            <Button onClick={handleAddTag} disabled={!newTag}>
-              Add Tag
+            <Button onClick={handleAddTag} disabled={selectedTags.length === 0}>
+              Add Tag{selectedTags.length > 1 ? "s" : ""}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -421,33 +454,14 @@ export default function ArticlesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tags">Tags (comma-separated)</Label>
-              <Input
-                id="tags"
-                type="text"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                placeholder="tech, news, important"
-                list="tag-suggestions-dialog"
+              <Label htmlFor="tags">Tags</Label>
+              <TagCombobox
+                availableTags={allTags}
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                placeholder="Select or create tags..."
+                emptyText="No tags found. Type to create new tags."
               />
-              <datalist id="tag-suggestions-dialog">
-                {allTags?.map((tag) => (
-                  <option key={tag._id} value={tag.displayName}>
-                    {tag.displayName} ({tag.count})
-                  </option>
-                ))}
-              </datalist>
-              {allTags && allTags.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Suggestions:{" "}
-                  {allTags.slice(0, 5).map((tag, idx) => (
-                    <span key={tag._id}>
-                      {idx > 0 && ", "}
-                      {tag.displayName}
-                    </span>
-                  ))}
-                </p>
-              )}
             </div>
             <DialogFooter>
               <Button
@@ -456,7 +470,7 @@ export default function ArticlesPage() {
                 onClick={() => {
                   setAddArticleDialogOpen(false);
                   setUrl("");
-                  setTags("");
+                  setSelectedTags([]);
                 }}
               >
                 Cancel
