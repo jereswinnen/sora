@@ -1,6 +1,12 @@
 "use client";
 
-import { LayoutDashboard, FileText, User2, ChevronUp } from "lucide-react";
+import {
+  LayoutDashboard,
+  FileText,
+  User2,
+  ChevronUp,
+  LogOutIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
@@ -84,7 +90,8 @@ export function AppSidebar() {
                 className="w-[--radix-popper-anchor-width]"
               >
                 <DropdownMenuItem onClick={handleSignOut}>
-                  <span>Sign out</span>
+                  <LogOutIcon />
+                  Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
