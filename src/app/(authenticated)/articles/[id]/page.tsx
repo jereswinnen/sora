@@ -208,7 +208,10 @@ export default function ArticlePage({
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Article Content */}
-      <article className="max-w-4xl mx-auto px-4 py-8 w-full">
+      <article
+        className="article-content mx-auto w-full max-w-4xl"
+        data-articletheme="sans"
+      >
         {/* Header Image */}
         {article.imageUrl && (
           <div className="mb-8">
@@ -221,10 +224,10 @@ export default function ArticlePage({
         )}
 
         {/* Title */}
-        <h1 className="text-4xl font-bold mb-4">{article.title}</h1>
+        <h1>{article.title}</h1>
 
         {/* Metadata */}
-        <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-8 pb-8 border-b">
+        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-8 pb-8 border-b">
           {article.author && <span>By {article.author}</span>}
           {article.publishedAt && (
             <span>
@@ -237,110 +240,14 @@ export default function ArticlePage({
           )}
         </div>
 
-        {/* Tags */}
-        {article.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-8">
-            {article.tags.map((tag) => (
-              <span
-                key={tag}
-                className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-full"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* Article Body */}
-        <div
-          className="prose prose-lg max-w-none"
-          style={{
-            lineHeight: "1.8",
-            fontSize: "18px",
-          }}
-        >
-          {/* Render content as HTML with basic sanitization via whitespace preservation */}
+        <div className="prose prose-lg max-w-none">
           <div
             dangerouslySetInnerHTML={{ __html: article.content }}
             className="article-content"
           />
         </div>
       </article>
-
-      {/* Global styles for article content */}
-      <style jsx global>{`
-        .article-content {
-          color: #1a1a1a;
-        }
-        .article-content p {
-          margin-bottom: 1.5em;
-        }
-        .article-content h1,
-        .article-content h2,
-        .article-content h3,
-        .article-content h4 {
-          margin-top: 2em;
-          margin-bottom: 0.75em;
-          font-weight: 600;
-          line-height: 1.3;
-        }
-        .article-content h1 {
-          font-size: 2em;
-        }
-        .article-content h2 {
-          font-size: 1.5em;
-        }
-        .article-content h3 {
-          font-size: 1.25em;
-        }
-        .article-content ul,
-        .article-content ol {
-          margin-left: 2em;
-          margin-bottom: 1.5em;
-        }
-        .article-content li {
-          margin-bottom: 0.5em;
-        }
-        .article-content a {
-          color: #2563eb;
-          text-decoration: underline;
-        }
-        .article-content a:hover {
-          color: #1d4ed8;
-        }
-        .article-content blockquote {
-          border-left: 4px solid #e5e7eb;
-          padding-left: 1.5em;
-          margin-left: 0;
-          margin-right: 0;
-          font-style: italic;
-          color: #4b5563;
-        }
-        .article-content code {
-          background-color: #f3f4f6;
-          padding: 0.2em 0.4em;
-          border-radius: 3px;
-          font-size: 0.9em;
-          font-family: monospace;
-        }
-        .article-content pre {
-          background-color: #f3f4f6;
-          padding: 1em;
-          border-radius: 6px;
-          overflow-x: auto;
-          margin-bottom: 1.5em;
-        }
-        .article-content pre code {
-          background-color: transparent;
-          padding: 0;
-        }
-        .article-content img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 8px;
-          margin: 2em 0;
-        }
-      `}</style>
 
       {/* Manage Tags Dialog */}
       <ManageTagsDialog
