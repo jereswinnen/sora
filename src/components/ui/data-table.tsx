@@ -31,7 +31,10 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   searchColumn?: string;
   searchPlaceholder?: string;
-  bulkActions?: (params: { selectedRows: TData[]; table: TableInstance<TData> }) => React.ReactNode;
+  bulkActions?: (params: {
+    selectedRows: TData[];
+    table: TableInstance<TData>;
+  }) => React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -43,7 +46,7 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
+    [],
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
@@ -68,7 +71,9 @@ export function DataTable<TData, TValue>({
     },
   });
 
-  const selectedRows = table.getFilteredSelectedRowModel().rows.map(row => row.original);
+  const selectedRows = table
+    .getFilteredSelectedRowModel()
+    .rows.map((row) => row.original);
 
   return (
     <div className="space-y-4">
@@ -76,7 +81,9 @@ export function DataTable<TData, TValue>({
         table={table}
         searchColumn={searchColumn}
         searchPlaceholder={searchPlaceholder}
-        bulkActions={bulkActions ? bulkActions({ selectedRows, table }) : undefined}
+        bulkActions={
+          bulkActions ? bulkActions({ selectedRows, table }) : undefined
+        }
       />
       <div className="rounded-md border">
         <Table>
@@ -90,7 +97,7 @@ export function DataTable<TData, TValue>({
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
                   );
@@ -109,7 +116,7 @@ export function DataTable<TData, TValue>({
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -121,7 +128,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No results
                 </TableCell>
               </TableRow>
             )}

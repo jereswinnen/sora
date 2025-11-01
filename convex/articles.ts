@@ -273,7 +273,8 @@ export const addTag = mutation({
     );
 
     if (tagExists) {
-      throw new Error("Tag already exists on this article");
+      // Tag already exists, silently succeed (idempotent operation)
+      return { success: true, alreadyExists: true };
     }
 
     // Add tag
@@ -284,7 +285,7 @@ export const addTag = mutation({
     // Increment tag count
     await ctx.runMutation(api.tags.incrementTagCount, { tagName: displayName });
 
-    return { success: true };
+    return { success: true, alreadyExists: false };
   },
 });
 

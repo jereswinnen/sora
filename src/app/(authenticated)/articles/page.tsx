@@ -10,10 +10,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable } from "@/components/ui/data-table";
 import { createColumns, Article } from "./columns";
+import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import { TagCombobox } from "@/components/ui/tag-combobox";
 
 export default function ArticlesPage() {
@@ -41,7 +40,7 @@ export default function ArticlesPage() {
   const { setHeaderAction } = useHeaderAction();
 
   const [url, setUrl] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [addArticleTags, setAddArticleTags] = useState<string[]>([]);
   const [selectedArticleId, setSelectedArticleId] =
     useState<Id<"articles"> | null>(null);
   const [deleteArticleId, setDeleteArticleId] = useState<Id<"articles"> | null>(
@@ -78,10 +77,10 @@ export default function ArticlesPage() {
     setLoading(true);
 
     try {
-      await saveArticle({ url, tags: selectedTags });
+      await saveArticle({ url, tags: addArticleTags });
       toast.success("Article saved successfully!");
       setUrl("");
-      setSelectedTags([]);
+      setAddArticleTags([]);
       setAddArticleDialogOpen(false);
     } catch (err) {
       toast.error(
@@ -147,13 +146,13 @@ export default function ArticlesPage() {
     }
   };
 
-  const handleAddTag = async () => {
-    if (!selectedArticleId || selectedTags.length === 0) return;
+  const handleAddTags = async (tags: string[]) => {
+    if (!selectedArticleId || tags.length === 0) return;
 
     try {
-      // Filter out tags that already exist on the article
+      // Filter out tags that already exist on the article (client-side optimization)
       const existingTags = selectedArticle?.tags || [];
-      const newTags = selectedTags.filter(
+      const newTags = tags.filter(
         (tag) =>
           !existingTags.some(
             (existingTag) => existingTag.toLowerCase() === tag.toLowerCase(),
@@ -165,18 +164,22 @@ export default function ArticlesPage() {
         return;
       }
 
-      // Add only new tags
-      await Promise.all(
+      // Add tags (backend will handle any remaining duplicates gracefully)
+      const results = await Promise.all(
         newTags.map((tag) => addTag({ articleId: selectedArticleId, tag })),
       );
-      toast.success(
-        `${newTags.length} tag${newTags.length > 1 ? "s" : ""} added!`,
-      );
-      setSelectedTags([]);
-      setSelectedArticleId(null);
-      setAddTagDialogOpen(false);
+
+      // Count how many were actually added
+      const addedCount = results.filter((r) => !r.alreadyExists).length;
+
+      if (addedCount > 0) {
+        toast.success(
+          `${addedCount} tag${addedCount > 1 ? "s" : ""} added!`,
+        );
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to add tags");
+      throw err; // Re-throw so the dialog knows it failed
     }
   };
 
@@ -338,66 +341,16 @@ export default function ArticlesPage() {
         )}
       />
 
-      {/* Tags Dialog */}
-      <Dialog open={addTagDialogOpen} onOpenChange={setAddTagDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Manage Tags</DialogTitle>
-            <DialogDescription>
-              Add or remove tags to organize this article.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* Existing Tags */}
-            {selectedArticle && selectedArticle.tags.length > 0 && (
-              <div className="space-y-2">
-                <Label>Current Tags</Label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedArticle.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="gap-1">
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="ml-1 rounded-full hover:bg-muted"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Add New Tags */}
-            <div className="space-y-2">
-              <Label htmlFor="new-tag">Add Tags</Label>
-              <TagCombobox
-                availableTags={allTags}
-                selectedTags={selectedTags}
-                onTagsChange={setSelectedTags}
-                placeholder="Select or create tags..."
-                emptyText="No tags found. Type to create new tags."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setAddTagDialogOpen(false);
-                setSelectedTags([]);
-                setSelectedArticleId(null);
-              }}
-            >
-              Close
-            </Button>
-            <Button onClick={handleAddTag} disabled={selectedTags.length === 0}>
-              Add Tag{selectedTags.length > 1 ? "s" : ""}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Manage Tags Dialog */}
+      <ManageTagsDialog
+        open={addTagDialogOpen}
+        onOpenChange={setAddTagDialogOpen}
+        currentTags={selectedArticle?.tags || []}
+        availableTags={allTags}
+        onAddTags={handleAddTags}
+        onRemoveTag={handleRemoveTag}
+        contentType="article"
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog
@@ -457,8 +410,8 @@ export default function ArticlesPage() {
               <Label htmlFor="tags">Tags</Label>
               <TagCombobox
                 availableTags={allTags}
-                selectedTags={selectedTags}
-                onTagsChange={setSelectedTags}
+                selectedTags={addArticleTags}
+                onTagsChange={setAddArticleTags}
                 placeholder="Select or create tags..."
                 emptyText="No tags found. Type to create new tags."
               />
@@ -470,7 +423,7 @@ export default function ArticlesPage() {
                 onClick={() => {
                   setAddArticleDialogOpen(false);
                   setUrl("");
-                  setSelectedTags([]);
+                  setAddArticleTags([]);
                 }}
               >
                 Cancel

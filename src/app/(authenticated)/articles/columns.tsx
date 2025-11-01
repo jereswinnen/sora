@@ -209,7 +209,7 @@ export const createColumns = (actions: {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => actions.onAddTag(article._id)}>
               <TagIcon />
-              Add Tags
+              {article.tags.length > 0 ? "Edit Tags" : "Add Tags"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() =>
