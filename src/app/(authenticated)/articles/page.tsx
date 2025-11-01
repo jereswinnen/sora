@@ -10,8 +10,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AlertCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +49,7 @@ export default function ArticlesPage() {
     null,
   );
   const [loading, setLoading] = useState(false);
+  const [addArticleError, setAddArticleError] = useState<string | null>(null);
   const [addTagDialogOpen, setAddTagDialogOpen] = useState(false);
   const [addArticleDialogOpen, setAddArticleDialogOpen] = useState(false);
 
@@ -75,17 +78,32 @@ export default function ArticlesPage() {
   const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setAddArticleError(null); // Clear previous errors
 
     try {
       await saveArticle({ url, tags: addArticleTags });
       toast.success("Article saved successfully!");
       setUrl("");
       setAddArticleTags([]);
+      setAddArticleError(null);
       setAddArticleDialogOpen(false);
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save article",
-      );
+      // Extract clean error message from Convex error
+      let errorMessage = "Failed to save article";
+      if (err instanceof Error) {
+        // Extract the actual error message from Convex's error format
+        const match = err.message.match(/Uncaught Error: (.+?)(?:\n|$)/);
+        const rawMessage = match ? match[1] : err.message;
+
+        // Make error messages more user-friendly
+        if (rawMessage.includes("Article already saved")) {
+          errorMessage = "You've already saved this article.";
+        } else {
+          // Remove "Uncaught Error:" prefix if it's still there
+          errorMessage = rawMessage.replace(/^Uncaught Error:\s*/i, "");
+        }
+      }
+      setAddArticleError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -384,7 +402,15 @@ export default function ArticlesPage() {
       {/* Add Article Dialog */}
       <Dialog
         open={addArticleDialogOpen}
-        onOpenChange={setAddArticleDialogOpen}
+        onOpenChange={(open) => {
+          setAddArticleDialogOpen(open);
+          if (!open) {
+            // Clear form and error when dialog closes
+            setUrl("");
+            setAddArticleTags([]);
+            setAddArticleError(null);
+          }
+        }}
       >
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
@@ -395,13 +421,23 @@ export default function ArticlesPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveArticle} className="space-y-4">
+            {addArticleError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{addArticleError}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="article-url">Article URL</Label>
               <Input
                 id="article-url"
                 type="url"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  // Clear error when user starts typing
+                  if (addArticleError) setAddArticleError(null);
+                }}
                 placeholder="https://example.com/article"
                 required
               />
@@ -420,11 +456,7 @@ export default function ArticlesPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setAddArticleDialogOpen(false);
-                  setUrl("");
-                  setAddArticleTags([]);
-                }}
+                onClick={() => setAddArticleDialogOpen(false)}
               >
                 Cancel
               </Button>

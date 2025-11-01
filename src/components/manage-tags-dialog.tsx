@@ -49,7 +49,7 @@ export function ManageTagsDialog({
       await onAddTags(selectedTags);
       setSelectedTags([]);
       onOpenChange(false); // Close dialog on success
-    } catch (err) {
+    } catch {
       // Don't close on error - let user retry
     }
   };
