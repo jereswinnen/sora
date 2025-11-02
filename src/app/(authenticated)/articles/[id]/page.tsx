@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
@@ -52,7 +52,7 @@ export default function ArticlePage({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
 
-  // Appearance settings state
+  // Appearance settings state - initialized from database or defaults
   const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>({
     theme: "sans",
     titleSize: 32,
@@ -68,6 +68,24 @@ export default function ArticlePage({
     articleId: id as Id<"articles">,
   });
   const allTags = useQuery(api.tags.getAllTags);
+  const userPreferences = useQuery(api.userPreferences.get);
+  const updatePreferences = useMutation(api.userPreferences.updateArticleAppearance);
+
+  // Load user preferences from database when available
+  useEffect(() => {
+    if (userPreferences) {
+      setAppearanceSettings({
+        theme: userPreferences.articleTheme ?? "sans",
+        titleSize: userPreferences.articleTitleSize ?? 32,
+        titleLeading: userPreferences.articleTitleLeading ?? 1.3,
+        titleAlignment: userPreferences.articleTitleAlignment ?? "left",
+        bodySize: userPreferences.articleBodySize ?? 18,
+        bodyLeading: userPreferences.articleBodyLeading ?? 1.8,
+        margins: userPreferences.articleMargins ?? "normal",
+        justifyText: userPreferences.articleJustifyText ?? false,
+      });
+    }
+  }, [userPreferences]);
 
   const {
     handleToggleFavorite: toggleFavorite,
@@ -130,7 +148,7 @@ export default function ArticlePage({
           </ToggleGroup>
           <AppearancePopover
             settings={appearanceSettings}
-            onSettingsChange={setAppearanceSettings}
+            onSettingsChange={handleAppearanceChange}
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -200,6 +218,23 @@ export default function ArticlePage({
 
   const handleRemoveTag = async (tag: string) => {
     await removeTagAction(id as Id<"articles">, tag);
+  };
+
+  // Save appearance settings to database
+  const handleAppearanceChange = async (newSettings: AppearanceSettings) => {
+    setAppearanceSettings(newSettings);
+
+    // Save to database
+    await updatePreferences({
+      articleTheme: newSettings.theme,
+      articleTitleSize: newSettings.titleSize,
+      articleTitleLeading: newSettings.titleLeading,
+      articleTitleAlignment: newSettings.titleAlignment,
+      articleBodySize: newSettings.bodySize,
+      articleBodyLeading: newSettings.bodyLeading,
+      articleMargins: newSettings.margins,
+      articleJustifyText: newSettings.justifyText,
+    });
   };
 
   if (article === undefined) {

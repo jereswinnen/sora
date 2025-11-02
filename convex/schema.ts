@@ -64,12 +64,19 @@ const schema = defineSchema({
     .index("by_user_name", ["userId", "name"]),
 
   // User preferences and settings
+  // Modular structure - each category of settings can be extended independently
   userPreferences: defineTable({
     userId: v.string(), // Convex Auth user ID
-    theme: v.optional(v.union(v.literal("light"), v.literal("dark"), v.literal("system"))),
-    defaultView: v.optional(v.union(v.literal("grid"), v.literal("list"))),
-    autoArchive: v.optional(v.boolean()),
-    notificationsEnabled: v.optional(v.boolean()),
+
+    // Article reading appearance
+    articleTheme: v.optional(v.union(v.literal("sans"), v.literal("serif"))),
+    articleTitleSize: v.optional(v.number()),
+    articleTitleLeading: v.optional(v.number()),
+    articleTitleAlignment: v.optional(v.union(v.literal("left"), v.literal("center"))),
+    articleBodySize: v.optional(v.number()),
+    articleBodyLeading: v.optional(v.number()),
+    articleMargins: v.optional(v.union(v.literal("narrow"), v.literal("normal"), v.literal("wide"))),
+    articleJustifyText: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 });
 

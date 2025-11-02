@@ -15,6 +15,7 @@ import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as parser from "../parser.js";
 import type * as tags from "../tags.js";
+import type * as userPreferences from "../userPreferences.js";
 import type * as users from "../users.js";
 import type * as utils_readingTime from "../utils/readingTime.js";
 
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   parser: typeof parser;
   tags: typeof tags;
+  userPreferences: typeof userPreferences;
   users: typeof users;
   "utils/readingTime": typeof utils_readingTime;
 }>;

@@ -39,6 +39,17 @@ export type AppearanceSettings = {
   justifyText: boolean;
 };
 
+const DEFAULT_SETTINGS: AppearanceSettings = {
+  theme: "sans",
+  titleSize: 32,
+  titleLeading: 1.3,
+  titleAlignment: "left",
+  bodySize: 18,
+  bodyLeading: 1.8,
+  margins: "normal",
+  justifyText: false,
+};
+
 interface AppearancePopoverProps {
   settings: AppearanceSettings;
   onSettingsChange: (settings: AppearanceSettings) => void;
@@ -55,6 +66,13 @@ export function AppearancePopover({
     value: AppearanceSettings[K],
   ) => {
     onSettingsChange({ ...settings, [key]: value });
+  };
+
+  const hasChanges =
+    JSON.stringify(settings) !== JSON.stringify(DEFAULT_SETTINGS);
+
+  const handleReset = () => {
+    onSettingsChange(DEFAULT_SETTINGS);
   };
 
   return (
@@ -248,6 +266,17 @@ export function AppearancePopover({
               </ToggleGroup>
             </Field>
           </FieldSet>
+
+          {/* Reset Button */}
+          <Button
+            className="w-full"
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            disabled={!hasChanges}
+          >
+            Reset to Defaults
+          </Button>
         </FieldGroup>
       </PopoverContent>
     </Popover>
