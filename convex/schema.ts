@@ -85,7 +85,7 @@ const schema = defineSchema({
     coverUrl: v.optional(v.string()),
     title: v.string(),
     author: v.optional(v.string()),
-    publishedYear: v.optional(v.number()),
+    publishedDate: v.optional(v.number()),
     status: v.string(), // "not_started", "reading", "finished", "abandoned"
     tags: v.array(v.string()),
     favorited: v.optional(v.boolean()),

@@ -12,7 +12,7 @@ export const addBook = mutation({
     coverUrl: v.optional(v.string()),
     title: v.string(),
     author: v.optional(v.string()),
-    publishedYear: v.optional(v.number()),
+    publishedDate: v.optional(v.number()),
     status: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     favorited: v.optional(v.boolean()),
@@ -59,7 +59,7 @@ export const addBook = mutation({
       coverUrl: args.coverUrl,
       title: args.title,
       author: args.author,
-      publishedYear: args.publishedYear,
+      publishedDate: args.publishedDate,
       status: status,
       tags: uniqueTags,
       favorited: args.favorited || false,
@@ -159,7 +159,7 @@ export const updateBook = mutation({
     coverUrl: v.optional(v.string()),
     title: v.optional(v.string()),
     author: v.optional(v.string()),
-    publishedYear: v.optional(v.number()),
+    publishedDate: v.optional(v.number()),
     status: v.optional(v.string()),
     favorited: v.optional(v.boolean()),
   },
@@ -187,7 +187,7 @@ export const updateBook = mutation({
     if (args.coverUrl !== undefined) updates.coverUrl = args.coverUrl;
     if (args.title !== undefined) updates.title = args.title;
     if (args.author !== undefined) updates.author = args.author;
-    if (args.publishedYear !== undefined) updates.publishedYear = args.publishedYear;
+    if (args.publishedDate !== undefined) updates.publishedDate = args.publishedDate;
     if (args.favorited !== undefined) updates.favorited = args.favorited;
 
     // Handle status changes with automatic date setting

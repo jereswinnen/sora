@@ -33,7 +33,7 @@ export type Book = {
   title: string;
   author?: string;
   coverUrl?: string;
-  publishedYear?: number;
+  publishedDate?: number;
   status: string;
   tags: string[];
   favorited?: boolean;
@@ -84,8 +84,8 @@ export const createColumns = (actions: {
         metadata.push(book.author);
       }
 
-      if (book.publishedYear) {
-        metadata.push(book.publishedYear.toString());
+      if (book.publishedDate) {
+        metadata.push(new Date(book.publishedDate).toLocaleDateString());
       }
 
       return (

@@ -52,7 +52,7 @@ export default function BooksPage() {
   const [coverUrl, setCoverUrl] = useState("");
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
-  const [publishedYear, setPublishedYear] = useState("");
+  const [publishedDate, setPublishedDate] = useState("");
   const [status, setStatus] = useState("not_started");
   const [bookTags, setBookTags] = useState<string[]>([]);
   const [favorited, setFavorited] = useState(false);
@@ -104,7 +104,11 @@ export default function BooksPage() {
       setCoverUrl(selectedBook.coverUrl || "");
       setTitle(selectedBook.title);
       setAuthor(selectedBook.author || "");
-      setPublishedYear(selectedBook.publishedYear?.toString() || "");
+      setPublishedDate(
+        selectedBook.publishedDate
+          ? new Date(selectedBook.publishedDate).toISOString().split('T')[0]
+          : ""
+      );
       setStatus(selectedBook.status);
       setBookTags(selectedBook.tags || []);
       setFavorited(selectedBook.favorited || false);
@@ -115,7 +119,7 @@ export default function BooksPage() {
     setCoverUrl("");
     setTitle("");
     setAuthor("");
-    setPublishedYear("");
+    setPublishedDate("");
     setStatus("not_started");
     setBookTags([]);
     setFavorited(false);
@@ -132,7 +136,7 @@ export default function BooksPage() {
         coverUrl: coverUrl || undefined,
         title,
         author: author || undefined,
-        publishedYear: publishedYear ? parseInt(publishedYear) : undefined,
+        publishedDate: publishedDate ? new Date(publishedDate).getTime() : undefined,
         status,
         tags: bookTags,
         favorited,
@@ -164,7 +168,7 @@ export default function BooksPage() {
         coverUrl: coverUrl || undefined,
         title,
         author: author || undefined,
-        publishedYear: publishedYear ? parseInt(publishedYear) : undefined,
+        publishedDate: publishedDate ? new Date(publishedDate).getTime() : undefined,
         status,
         favorited,
       });
@@ -224,7 +228,7 @@ export default function BooksPage() {
       title: book.title,
       author: book.author,
       coverUrl: book.coverUrl,
-      publishedYear: book.publishedYear,
+      publishedDate: book.publishedDate,
       status: book.status,
       tags: book.tags,
       favorited: book.favorited,
@@ -379,15 +383,12 @@ export default function BooksPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="book-year">Published Year</Label>
+                <Label htmlFor="book-date">Published Date</Label>
                 <Input
-                  id="book-year"
-                  type="number"
-                  value={publishedYear}
-                  onChange={(e) => setPublishedYear(e.target.value)}
-                  placeholder="1925"
-                  min="1000"
-                  max="2100"
+                  id="book-date"
+                  type="date"
+                  value={publishedDate}
+                  onChange={(e) => setPublishedDate(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -499,15 +500,12 @@ export default function BooksPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-book-year">Published Year</Label>
+                <Label htmlFor="edit-book-date">Published Date</Label>
                 <Input
-                  id="edit-book-year"
-                  type="number"
-                  value={publishedYear}
-                  onChange={(e) => setPublishedYear(e.target.value)}
-                  placeholder="1925"
-                  min="1000"
-                  max="2100"
+                  id="edit-book-date"
+                  type="date"
+                  value={publishedDate}
+                  onChange={(e) => setPublishedDate(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
