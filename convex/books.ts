@@ -2,7 +2,6 @@ import { action, mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
 
 /**
  * Add a new book
@@ -377,8 +376,24 @@ export const searchOpenLibrary = action({
 
       const data = await response.json();
 
+      // Define OpenLibrary API response type
+      interface OpenLibraryDoc {
+        title?: string;
+        cover_i?: number;
+        first_publish_year?: number;
+        author_name?: string[];
+        key: string;
+        isbn?: string[];
+      }
+
+      interface OpenLibraryResponse {
+        docs: OpenLibraryDoc[];
+      }
+
+      const typedData = data as OpenLibraryResponse;
+
       // Transform the results into a clean format
-      return data.docs.map((book: any) => {
+      return typedData.docs.map((book) => {
         // Get cover URL from cover_i (cover ID)
         const coverUrl = book.cover_i
           ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`

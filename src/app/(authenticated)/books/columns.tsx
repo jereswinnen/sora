@@ -3,12 +3,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import {
   BookCheckIcon,
-  BookXIcon,
-  ChevronRight,
-  CircleCheckIcon,
-  CircleDotDashedIcon,
-  CircleIcon,
-  CircleSlashIcon,
   MoreHorizontal,
   PencilIcon,
   StarIcon,
@@ -20,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { BOOK_STATUSES, BOOK_STATUS_CONFIG } from "./types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,7 +96,7 @@ export const createColumns = (actions: {
             <img
               src={book.coverUrl}
               alt={book.title}
-              className="w-8 h-12 object-cover rounded flex-shrink-0"
+              className="w-6 h-auto object-cover rounded flex-shrink-0"
             />
           )}
           <div className="flex flex-col min-w-0">
@@ -128,23 +123,9 @@ export const createColumns = (actions: {
     ),
     cell: ({ row }) => {
       const book = row.original;
-
-      const statusConfig: Record<
-        string,
-        {
-          label: string;
-          variant: "default" | "secondary" | "outline" | "destructive";
-        }
-      > = {
-        not_started: { label: "Not Started", variant: "outline" },
-        reading: { label: "Reading", variant: "default" },
-        finished: { label: "Finished", variant: "secondary" },
-        abandoned: { label: "Abandoned", variant: "destructive" },
-      };
-
-      const config = statusConfig[book.status] || {
+      const config = BOOK_STATUS_CONFIG[book.status as keyof typeof BOOK_STATUS_CONFIG] || {
         label: book.status,
-        variant: "outline",
+        variant: "outline" as const,
       };
 
       return <Badge variant={config.variant}>{config.label}</Badge>;
@@ -201,32 +182,32 @@ export const createColumns = (actions: {
 
       // Determine available status actions based on current status
       const statusActions = [];
-      if (book.status !== "reading") {
+      if (book.status !== BOOK_STATUSES.READING) {
         statusActions.push({
-          label: "Mark as Reading",
-          icon: CircleDotDashedIcon,
-          status: "reading",
+          label: `Mark as ${BOOK_STATUS_CONFIG[BOOK_STATUSES.READING].label}`,
+          icon: BOOK_STATUS_CONFIG[BOOK_STATUSES.READING].icon,
+          status: BOOK_STATUSES.READING,
         });
       }
-      if (book.status !== "finished") {
+      if (book.status !== BOOK_STATUSES.FINISHED) {
         statusActions.push({
-          label: "Mark as Finished",
-          icon: CircleCheckIcon,
-          status: "finished",
+          label: `Mark as ${BOOK_STATUS_CONFIG[BOOK_STATUSES.FINISHED].label}`,
+          icon: BOOK_STATUS_CONFIG[BOOK_STATUSES.FINISHED].icon,
+          status: BOOK_STATUSES.FINISHED,
         });
       }
-      if (book.status !== "abandoned") {
+      if (book.status !== BOOK_STATUSES.ABANDONED) {
         statusActions.push({
-          label: "Mark as Abandoned",
-          icon: CircleSlashIcon,
-          status: "abandoned",
+          label: `Mark as ${BOOK_STATUS_CONFIG[BOOK_STATUSES.ABANDONED].label}`,
+          icon: BOOK_STATUS_CONFIG[BOOK_STATUSES.ABANDONED].icon,
+          status: BOOK_STATUSES.ABANDONED,
         });
       }
-      if (book.status !== "not_started") {
+      if (book.status !== BOOK_STATUSES.NOT_STARTED) {
         statusActions.push({
-          label: "Mark as Not Started",
-          icon: CircleIcon,
-          status: "not_started",
+          label: `Mark as ${BOOK_STATUS_CONFIG[BOOK_STATUSES.NOT_STARTED].label}`,
+          icon: BOOK_STATUS_CONFIG[BOOK_STATUSES.NOT_STARTED].icon,
+          status: BOOK_STATUSES.NOT_STARTED,
         });
       }
 
@@ -270,7 +251,9 @@ export const createColumns = (actions: {
                 {statusActions.map((action) => (
                   <DropdownMenuItem
                     key={action.status}
-                    onClick={() => actions.onUpdateStatus(book._id, action.status)}
+                    onClick={() =>
+                      actions.onUpdateStatus(book._id, action.status)
+                    }
                   >
                     <action.icon />
                     {action.label}

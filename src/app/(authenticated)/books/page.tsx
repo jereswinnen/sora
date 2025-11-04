@@ -43,6 +43,7 @@ import { createColumns, Book } from "./columns";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import { TagCombobox } from "@/components/ui/tag-combobox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BOOK_STATUSES, BOOK_STATUS_CONFIG, OpenLibraryBook, BookStatus } from "./types";
 import {
   Empty,
   EmptyContent,
@@ -59,6 +60,17 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 
+function StatusOption({ status }: { status: BookStatus }) {
+  const config = BOOK_STATUS_CONFIG[status];
+  const IconComponent = config.icon;
+  return (
+    <div className="flex items-center gap-2">
+      <IconComponent className="size-4" />
+      {config.label}
+    </div>
+  );
+}
+
 export default function BooksPage() {
   const { setHeaderAction } = useHeaderAction();
 
@@ -67,7 +79,7 @@ export default function BooksPage() {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [publishedDate, setPublishedDate] = useState("");
-  const [status, setStatus] = useState("not_started");
+  const [status, setStatus] = useState<BookStatus>(BOOK_STATUSES.NOT_STARTED);
   const [bookTags, setBookTags] = useState<string[]>([]);
   const [favorited, setFavorited] = useState(false);
 
@@ -84,7 +96,7 @@ export default function BooksPage() {
 
   // OpenLibrary search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<OpenLibraryBook[]>([]);
   const [searching, setSearching] = useState(false);
 
   // Convex hooks
@@ -131,7 +143,7 @@ export default function BooksPage() {
           ? new Date(selectedBook.publishedDate).toISOString().split("T")[0]
           : "",
       );
-      setStatus(selectedBook.status);
+      setStatus(selectedBook.status as BookStatus);
       setBookTags(selectedBook.tags || []);
       setFavorited(selectedBook.favorited || false);
     }
@@ -142,7 +154,7 @@ export default function BooksPage() {
     setTitle("");
     setAuthor("");
     setPublishedDate("");
-    setStatus("not_started");
+    setStatus(BOOK_STATUSES.NOT_STARTED);
     setBookTags([]);
     setFavorited(false);
     setBookError(null);
@@ -158,7 +170,7 @@ export default function BooksPage() {
     try {
       const results = await searchOpenLibrary({ query: searchQuery, limit: 5 });
       setSearchResults(results || []);
-    } catch (err) {
+    } catch {
       toast.error("Failed to search OpenLibrary");
       setSearchResults([]);
     } finally {
@@ -166,13 +178,13 @@ export default function BooksPage() {
     }
   };
 
-  const handleSelectBook = (book: any) => {
+  const handleSelectBook = (book: OpenLibraryBook) => {
     setTitle(book.title || "");
     setAuthor(book.author || "");
     setCoverUrl(book.coverUrl || "");
     if (book.publishedDate) {
       setPublishedDate(
-        new Date(book.publishedDate).toISOString().split("T")[0]
+        new Date(book.publishedDate).toISOString().split("T")[0],
       );
     }
     setSearchQuery("");
@@ -537,17 +549,23 @@ export default function BooksPage() {
 
                     <Field>
                       <FieldLabel htmlFor="book-status">Status</FieldLabel>
-                      <Select value={status} onValueChange={setStatus}>
+                      <Select value={status} onValueChange={(value) => setStatus(value as BookStatus)}>
                         <SelectTrigger id="book-status">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="not_started">
-                            Not Started
+                          <SelectItem value={BOOK_STATUSES.NOT_STARTED}>
+                            <StatusOption status={BOOK_STATUSES.NOT_STARTED} />
                           </SelectItem>
-                          <SelectItem value="reading">Reading</SelectItem>
-                          <SelectItem value="finished">Finished</SelectItem>
-                          <SelectItem value="abandoned">Abandoned</SelectItem>
+                          <SelectItem value={BOOK_STATUSES.READING}>
+                            <StatusOption status={BOOK_STATUSES.READING} />
+                          </SelectItem>
+                          <SelectItem value={BOOK_STATUSES.FINISHED}>
+                            <StatusOption status={BOOK_STATUSES.FINISHED} />
+                          </SelectItem>
+                          <SelectItem value={BOOK_STATUSES.ABANDONED}>
+                            <StatusOption status={BOOK_STATUSES.ABANDONED} />
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </Field>
@@ -556,7 +574,7 @@ export default function BooksPage() {
                   <Field>
                     <FieldLabel htmlFor="book-cover">Cover URL</FieldLabel>
                     {coverUrl && (
-                      <div className="flex justify-center py-2">
+                      <div className="flex py-2">
                         <img
                           src={coverUrl}
                           alt="Book cover preview"
@@ -680,15 +698,23 @@ export default function BooksPage() {
 
                   <Field>
                     <FieldLabel htmlFor="edit-book-status">Status</FieldLabel>
-                    <Select value={status} onValueChange={setStatus}>
+                    <Select value={status} onValueChange={(value) => setStatus(value as BookStatus)}>
                       <SelectTrigger id="edit-book-status">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="not_started">Not Started</SelectItem>
-                        <SelectItem value="reading">Reading</SelectItem>
-                        <SelectItem value="finished">Finished</SelectItem>
-                        <SelectItem value="abandoned">Abandoned</SelectItem>
+                        <SelectItem value={BOOK_STATUSES.NOT_STARTED}>
+                          <StatusOption status={BOOK_STATUSES.NOT_STARTED} />
+                        </SelectItem>
+                        <SelectItem value={BOOK_STATUSES.READING}>
+                          <StatusOption status={BOOK_STATUSES.READING} />
+                        </SelectItem>
+                        <SelectItem value={BOOK_STATUSES.FINISHED}>
+                          <StatusOption status={BOOK_STATUSES.FINISHED} />
+                        </SelectItem>
+                        <SelectItem value={BOOK_STATUSES.ABANDONED}>
+                          <StatusOption status={BOOK_STATUSES.ABANDONED} />
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </Field>
@@ -697,7 +723,7 @@ export default function BooksPage() {
                 <Field>
                   <FieldLabel htmlFor="edit-book-cover">Cover URL</FieldLabel>
                   {coverUrl && (
-                    <div className="flex justify-center py-2">
+                    <div className="flex py-2">
                       <img
                         src={coverUrl}
                         alt="Book cover preview"
