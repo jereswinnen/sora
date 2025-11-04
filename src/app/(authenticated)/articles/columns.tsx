@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { ARTICLE_STATUS_CONFIG, getArticleStatus } from "./types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,25 +118,15 @@ export const createColumns = (actions: {
     ),
     cell: ({ row }) => {
       const article = row.original;
+      const status = getArticleStatus(article);
+      const config = ARTICLE_STATUS_CONFIG[status];
 
-      if (article.archived) {
-        return <Badge variant="secondary">Archived</Badge>;
-      }
-
-      if (article.readAt) {
-        return <Badge variant="default">Read</Badge>;
-      }
-
-      return <Badge variant="outline">Unread</Badge>;
+      return <Badge variant={config.variant}>{config.label}</Badge>;
     },
     filterFn: (row, id, value) => {
       const article = row.original;
-      if (value === "archived") return article.archived === true;
-      if (value === "read")
-        return article.readAt !== undefined && !article.archived;
-      if (value === "unread")
-        return article.readAt === undefined && !article.archived;
-      return true;
+      const status = getArticleStatus(article);
+      return status === value;
     },
   },
   {
