@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import {
   BookCheckIcon,
   BookXIcon,
+  ChevronRight,
   CircleCheckIcon,
   CircleDotDashedIcon,
   CircleIcon,
@@ -25,6 +26,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -248,15 +252,23 @@ export const createColumns = (actions: {
               {book.favorited ? "Remove from Favorites" : "Add to Favorites"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {statusActions.map((action) => (
-              <DropdownMenuItem
-                key={action.status}
-                onClick={() => actions.onUpdateStatus(book._id, action.status)}
-              >
-                <action.icon />
-                {action.label}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <BookCheckIcon />
+                Change Status
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {statusActions.map((action) => (
+                  <DropdownMenuItem
+                    key={action.status}
+                    onClick={() => actions.onUpdateStatus(book._id, action.status)}
+                  >
+                    <action.icon />
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => actions.onDelete(book._id)}
