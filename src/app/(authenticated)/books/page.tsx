@@ -13,7 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, BookOpen } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +44,14 @@ import { createColumns, Book } from "./columns";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import { TagCombobox } from "@/components/ui/tag-combobox";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 export default function BooksPage() {
   const { setHeaderAction } = useHeaderAction();
@@ -271,6 +279,23 @@ export default function BooksPage() {
             <Skeleton className="h-8 w-[200px]" />
           </div>
         </div>
+      ) : books.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <BookOpen />
+            </EmptyMedia>
+            <EmptyTitle>No Books Yet</EmptyTitle>
+            <EmptyDescription>
+              You haven&apos;t added any books to your collection yet. Start by adding your first book.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button onClick={() => setAddBookDialogOpen(true)}>
+              Add Book
+            </Button>
+          </EmptyContent>
+        </Empty>
       ) : (
         <DataTable
           columns={columns}
