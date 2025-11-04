@@ -24,6 +24,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     ? "Dashboard"
     : pathname === "/articles"
     ? "Articles"
+    : pathname === "/books"
+    ? "Books"
     : "Sora";
 
   return (
