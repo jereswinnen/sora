@@ -23,6 +23,22 @@ export const addBook = mutation({
       throw new Error("Not authenticated");
     }
 
+    // Check if book already exists for this user (same title and author)
+    const existing = await ctx.db
+      .query("books")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("title"), args.title),
+          q.eq(q.field("author"), args.author || undefined)
+        )
+      )
+      .first();
+
+    if (existing) {
+      throw new Error("Book already added to your collection");
+    }
+
     const status = args.status || "not_started";
 
     // Normalize tags
