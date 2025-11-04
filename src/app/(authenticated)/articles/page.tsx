@@ -55,9 +55,9 @@ export default function ArticlesPage() {
   const [addTagDialogOpen, setAddTagDialogOpen] = useState(false);
   const [addArticleDialogOpen, setAddArticleDialogOpen] = useState(false);
 
-  // Convex hooks - using optimized compact query for list view
-  // listArticlesCompact excludes the large 'content' field for better performance
-  const articles = useQuery(api.articles.listArticlesCompact, { limit: 100 });
+  // Convex hooks - listArticles now excludes content field for better performance
+  // Content is only loaded when viewing a single article
+  const articles = useQuery(api.articles.listArticles, { limit: 100 });
   const allTags = useQuery(api.tags.getAllTags);
   const selectedArticle = useQuery(
     api.articles.getArticle,

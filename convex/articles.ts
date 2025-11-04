@@ -175,64 +175,8 @@ export const listArticles = query({
       );
     }
 
-    // Return up to the requested limit
-    return filtered.slice(0, limit);
-  },
-});
-
-/**
- * List articles for the authenticated user (compact version)
- * Returns articles WITHOUT the content field for better performance in list views
- * Use this for tables/lists. Use getArticle for viewing full article content.
- *
- * Performance: Excludes the large 'content' field (50KB-500KB per article)
- * which can reduce data transfer by 95%+ for list views
- */
-export const listArticlesCompact = query({
-  args: {
-    tag: v.optional(v.string()),
-    limit: v.optional(v.number()),
-    archived: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
-
-    const limit = args.limit || 50;
-
-    // Use by_user_saved index for efficient sorting by savedAt (newest first)
-    let query = ctx.db
-      .query("articles")
-      .withIndex("by_user_saved", (q) => q.eq("userId", userId))
-      .order("desc");
-
-    // When filtering, fetch extra items to account for filtering
-    const hasFilters = args.archived !== undefined || args.tag !== undefined;
-    const fetchLimit = hasFilters ? limit * 3 : limit;
-
-    // Take only what we need from the database
-    const articles = await query.take(fetchLimit);
-
-    // Apply filters on the limited result set
-    let filtered = articles;
-
-    // Filter by archived status
-    if (args.archived !== undefined) {
-      filtered = filtered.filter((a) => (a.archived || false) === args.archived);
-    }
-
-    // Filter by tag (case-insensitive)
-    if (args.tag) {
-      const normalizedFilterTag = args.tag.toLowerCase();
-      filtered = filtered.filter((a) =>
-        a.tags.some((t) => t.toLowerCase() === normalizedFilterTag)
-      );
-    }
-
     // Return articles WITHOUT the content field (huge performance gain)
+    // Content is only loaded when viewing a single article via getArticle
     return filtered.slice(0, limit).map((article) => ({
       _id: article._id,
       _creationTime: article._creationTime,
