@@ -71,6 +71,32 @@ function StatusOption({ status }: { status: BookStatus }) {
   );
 }
 
+// Helper function to clean Convex error messages
+function cleanErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    let message = err.message;
+
+    // Remove Convex-specific prefixes
+    message = message.replace(/^\[CONVEX.*?\]\s*/g, "");
+    message = message.replace(/^\[Request ID:.*?\]\s*/g, "");
+    message = message.replace(/^Server Error\s*/i, "");
+    message = message.replace(/^Uncaught Error:\s*/i, "");
+
+    // Remove stack trace information
+    const atHandlerIndex = message.indexOf(" at handler");
+    if (atHandlerIndex !== -1) {
+      message = message.substring(0, atHandlerIndex);
+    }
+    const calledByIndex = message.indexOf(" Called by client");
+    if (calledByIndex !== -1) {
+      message = message.substring(0, calledByIndex);
+    }
+
+    return message.trim();
+  }
+  return "An unexpected error occurred";
+}
+
 export default function BooksPage() {
   const { setHeaderAction } = useHeaderAction();
 
@@ -212,11 +238,7 @@ export default function BooksPage() {
       resetForm();
       setAddBookDialogOpen(false);
     } catch (err) {
-      let errorMessage = "Failed to add book";
-      if (err instanceof Error) {
-        errorMessage = err.message.replace(/^Uncaught Error:\s*/i, "");
-      }
-      setBookError(errorMessage);
+      setBookError(cleanErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -246,11 +268,7 @@ export default function BooksPage() {
       setEditBookDialogOpen(false);
       setSelectedBookId(null);
     } catch (err) {
-      let errorMessage = "Failed to update book";
-      if (err instanceof Error) {
-        errorMessage = err.message.replace(/^Uncaught Error:\s*/i, "");
-      }
-      setBookError(errorMessage);
+      setBookError(cleanErrorMessage(err));
     } finally {
       setLoading(false);
     }
