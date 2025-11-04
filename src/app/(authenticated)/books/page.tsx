@@ -13,7 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { AlertCircle, BookOpen } from "lucide-react";
+import { AlertCircle, LibraryIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,7 +66,9 @@ export default function BooksPage() {
   const [favorited, setFavorited] = useState(false);
 
   // Dialog state
-  const [selectedBookId, setSelectedBookId] = useState<Id<"books"> | null>(null);
+  const [selectedBookId, setSelectedBookId] = useState<Id<"books"> | null>(
+    null,
+  );
   const [deleteBookId, setDeleteBookId] = useState<Id<"books"> | null>(null);
   const [loading, setLoading] = useState(false);
   const [bookError, setBookError] = useState<string | null>(null);
@@ -79,7 +81,7 @@ export default function BooksPage() {
   const allTags = useQuery(api.tags.getAllTags);
   const selectedBook = useQuery(
     api.books.getBook,
-    selectedBookId ? { bookId: selectedBookId } : "skip"
+    selectedBookId ? { bookId: selectedBookId } : "skip",
   );
   const addBook = useMutation(api.books.addBook);
   const updateBook = useMutation(api.books.updateBook);
@@ -114,8 +116,8 @@ export default function BooksPage() {
       setAuthor(selectedBook.author || "");
       setPublishedDate(
         selectedBook.publishedDate
-          ? new Date(selectedBook.publishedDate).toISOString().split('T')[0]
-          : ""
+          ? new Date(selectedBook.publishedDate).toISOString().split("T")[0]
+          : "",
       );
       setStatus(selectedBook.status);
       setBookTags(selectedBook.tags || []);
@@ -144,7 +146,9 @@ export default function BooksPage() {
         coverUrl: coverUrl || undefined,
         title,
         author: author || undefined,
-        publishedDate: publishedDate ? new Date(publishedDate).getTime() : undefined,
+        publishedDate: publishedDate
+          ? new Date(publishedDate).getTime()
+          : undefined,
         status,
         tags: bookTags,
         favorited,
@@ -176,7 +180,9 @@ export default function BooksPage() {
         coverUrl: coverUrl || undefined,
         title,
         author: author || undefined,
-        publishedDate: publishedDate ? new Date(publishedDate).getTime() : undefined,
+        publishedDate: publishedDate
+          ? new Date(publishedDate).getTime()
+          : undefined,
         status,
         favorited,
       });
@@ -210,18 +216,14 @@ export default function BooksPage() {
       toast.success(`${bookIds.length} book(s) deleted!`);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to delete books"
+        err instanceof Error ? err.message : "Failed to delete books",
       );
     }
   };
 
   const handleAddTags = async (tags: string[]) => {
     if (!selectedBookId || tags.length === 0) return;
-    await handleAddTagsAction(
-      selectedBookId,
-      tags,
-      selectedBook?.tags || []
-    );
+    await handleAddTagsAction(selectedBookId, tags, selectedBook?.tags || []);
   };
 
   const handleRemoveTag = async (tag: string) => {
@@ -283,17 +285,16 @@ export default function BooksPage() {
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <BookOpen />
+              <LibraryIcon />
             </EmptyMedia>
             <EmptyTitle>No Books Yet</EmptyTitle>
             <EmptyDescription>
-              You haven&apos;t added any books to your collection yet. Start by adding your first book.
+              You haven&apos;t added any books to your collection yet. Start by
+              adding your first book.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button onClick={() => setAddBookDialogOpen(true)}>
-              Add Book
-            </Button>
+            <Button onClick={() => setAddBookDialogOpen(true)}>Add Book</Button>
           </EmptyContent>
         </Empty>
       ) : (

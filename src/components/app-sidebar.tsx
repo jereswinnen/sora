@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  LayoutDashboard,
-  FileText,
-  BookOpen,
   User2,
   ChevronUp,
   LogOutIcon,
+  LibraryIcon,
+  FileTextIcon,
+  LayoutDashboardIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -36,17 +36,17 @@ const items = [
   {
     title: "Dashboard",
     url: "/dashboard",
-    icon: LayoutDashboard,
+    icon: LayoutDashboardIcon,
   },
   {
     title: "Articles",
     url: "/articles",
-    icon: FileText,
+    icon: FileTextIcon,
   },
   {
     title: "Books",
     url: "/books",
-    icon: BookOpen,
+    icon: LibraryIcon,
   },
 ];
 

@@ -3,8 +3,11 @@
 import { ColumnDef } from "@tanstack/react-table";
 import {
   BookCheckIcon,
-  BookOpenIcon,
   BookXIcon,
+  CircleCheckIcon,
+  CircleDotDashedIcon,
+  CircleIcon,
+  CircleSlashIcon,
   MoreHorizontal,
   PencilIcon,
   StarIcon,
@@ -115,7 +118,10 @@ export const createColumns = (actions: {
 
       const statusConfig: Record<
         string,
-        { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
+        {
+          label: string;
+          variant: "default" | "secondary" | "outline" | "destructive";
+        }
       > = {
         not_started: { label: "Not Started", variant: "outline" },
         reading: { label: "Reading", variant: "default" },
@@ -185,28 +191,28 @@ export const createColumns = (actions: {
       if (book.status !== "reading") {
         statusActions.push({
           label: "Mark as Reading",
-          icon: BookOpenIcon,
+          icon: CircleDotDashedIcon,
           status: "reading",
         });
       }
       if (book.status !== "finished") {
         statusActions.push({
           label: "Mark as Finished",
-          icon: BookCheckIcon,
+          icon: CircleCheckIcon,
           status: "finished",
         });
       }
       if (book.status !== "abandoned") {
         statusActions.push({
           label: "Mark as Abandoned",
-          icon: BookXIcon,
+          icon: CircleSlashIcon,
           status: "abandoned",
         });
       }
       if (book.status !== "not_started") {
         statusActions.push({
           label: "Mark as Not Started",
-          icon: BookOpenIcon,
+          icon: CircleIcon,
           status: "not_started",
         });
       }
