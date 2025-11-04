@@ -10,6 +10,7 @@
 
 import type * as articles from "../articles.js";
 import type * as auth from "../auth.js";
+import type * as books from "../books.js";
 import type * as devTools from "../devTools.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
@@ -36,6 +37,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   articles: typeof articles;
   auth: typeof auth;
+  books: typeof books;
   devTools: typeof devTools;
   helpers: typeof helpers;
   http: typeof http;
