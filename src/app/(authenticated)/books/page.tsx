@@ -455,14 +455,23 @@ export default function BooksPage() {
                       key={index}
                       type="button"
                       onClick={() => handleSelectBook(book)}
-                      className="w-full p-3 text-left border rounded-md hover:bg-muted transition-colors"
+                      className="w-full p-3 text-left border rounded-md hover:bg-muted transition-colors flex gap-3"
                     >
-                      <div className="font-medium">{book.title}</div>
-                      {book.author && (
-                        <div className="text-sm text-muted-foreground">
-                          {book.author}
-                        </div>
+                      {book.coverUrl && (
+                        <img
+                          src={book.coverUrl}
+                          alt={book.title}
+                          className="w-12 h-16 object-cover rounded"
+                        />
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{book.title}</div>
+                        {book.author && (
+                          <div className="text-sm text-muted-foreground truncate">
+                            {book.author}
+                          </div>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
