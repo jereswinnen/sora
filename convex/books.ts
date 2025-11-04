@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
@@ -345,5 +345,65 @@ export const removeTag = mutation({
     await ctx.runMutation(api.tags.decrementTagCount, { tagName: tagToRemove });
 
     return { success: true };
+  },
+});
+
+/**
+ * Search for books using the OpenLibrary API
+ */
+export const searchOpenLibrary = action({
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Authenticate user
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const limit = args.limit || 10;
+    const encodedQuery = encodeURIComponent(args.query);
+
+    try {
+      const response = await fetch(
+        `https://openlibrary.org/search.json?q=${encodedQuery}&limit=${limit}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`OpenLibrary API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Transform the results into a clean format
+      return data.docs.map((book: any) => {
+        // Get cover URL from cover_i (cover ID)
+        const coverUrl = book.cover_i
+          ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+          : undefined;
+
+        // Get first published year and convert to timestamp
+        const publishedDate = book.first_publish_year
+          ? new Date(`${book.first_publish_year}-01-01`).getTime()
+          : undefined;
+
+        // Get primary author (first in the list)
+        const author = book.author_name?.[0];
+
+        return {
+          title: book.title || "Untitled",
+          author,
+          coverUrl,
+          publishedDate,
+          key: book.key, // OpenLibrary work key
+          isbn: book.isbn?.[0], // First ISBN if available
+        };
+      });
+    } catch (error) {
+      console.error("OpenLibrary search error:", error);
+      throw new Error("Failed to search OpenLibrary");
+    }
   },
 });

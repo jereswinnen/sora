@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -8,12 +8,11 @@ import { useHeaderAction } from "@/components/layout-header-context";
 import { useBookActions } from "@/hooks/use-book-actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { AlertCircle, LibraryIcon } from "lucide-react";
+import { AlertCircle, LibraryIcon, Search } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +51,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+  FieldSet,
+} from "@/components/ui/field";
 
 export default function BooksPage() {
   const { setHeaderAction } = useHeaderAction();
@@ -76,6 +82,11 @@ export default function BooksPage() {
   const [addBookDialogOpen, setAddBookDialogOpen] = useState(false);
   const [editBookDialogOpen, setEditBookDialogOpen] = useState(false);
 
+  // OpenLibrary search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+
   // Convex hooks
   const books = useQuery(api.books.listBooks, { limit: 100 });
   const allTags = useQuery(api.tags.getAllTags);
@@ -86,6 +97,7 @@ export default function BooksPage() {
   const addBook = useMutation(api.books.addBook);
   const updateBook = useMutation(api.books.updateBook);
   const deleteBook = useMutation(api.books.deleteBook);
+  const searchOpenLibrary = useAction(api.books.searchOpenLibrary);
 
   // Get shared book actions
   const {
@@ -134,6 +146,37 @@ export default function BooksPage() {
     setBookTags([]);
     setFavorited(false);
     setBookError(null);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setSearching(true);
+    try {
+      const results = await searchOpenLibrary({ query: searchQuery, limit: 5 });
+      setSearchResults(results || []);
+    } catch (err) {
+      toast.error("Failed to search OpenLibrary");
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSelectBook = (book: any) => {
+    setTitle(book.title || "");
+    setAuthor(book.author || "");
+    setCoverUrl(book.coverUrl || "");
+    if (book.publishedDate) {
+      setPublishedDate(
+        new Date(book.publishedDate).toISOString().split("T")[0]
+      );
+    }
+    setSearchQuery("");
+    setSearchResults([]);
   };
 
   const handleAddBook = async (e: React.FormEvent) => {
@@ -369,109 +412,178 @@ export default function BooksPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Book</DialogTitle>
             <DialogDescription>
-              Add a book to your collection. Fill in the details below.
+              Search for a book or enter details manually.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddBook} className="space-y-4">
+
+          <FieldGroup>
+            {/* OpenLibrary Search Section */}
+            <FieldSet>
+              <form onSubmit={handleSearch}>
+                <Field>
+                  <FieldLabel htmlFor="search-query">
+                    Search OpenLibrary
+                  </FieldLabel>
+                  <div className="flex gap-2">
+                    <Input
+                      id="search-query"
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by title or author..."
+                    />
+                    <Button
+                      type="submit"
+                      disabled={searching || !searchQuery.trim()}
+                      size="icon"
+                    >
+                      {searching ? <Spinner /> : <Search />}
+                    </Button>
+                  </div>
+                </Field>
+              </form>
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {searchResults.map((book, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => handleSelectBook(book)}
+                      className="w-full p-3 text-left border rounded-md hover:bg-muted transition-colors"
+                    >
+                      <div className="font-medium">{book.title}</div>
+                      {book.author && (
+                        <div className="text-sm text-muted-foreground">
+                          {book.author}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </FieldSet>
+
+            <FieldSeparator>Or enter manually</FieldSeparator>
+
             {bookError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{bookError}</AlertDescription>
               </Alert>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="book-title">Title *</Label>
-              <Input
-                id="book-title"
-                type="text"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  if (bookError) setBookError(null);
-                }}
-                placeholder="The Great Gatsby"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="book-author">Author</Label>
-              <Input
-                id="book-author"
-                type="text"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                placeholder="F. Scott Fitzgerald"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="book-date">Published Date</Label>
-                <Input
-                  id="book-date"
-                  type="date"
-                  value={publishedDate}
-                  onChange={(e) => setPublishedDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="book-status">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger id="book-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="not_started">Not Started</SelectItem>
-                    <SelectItem value="reading">Reading</SelectItem>
-                    <SelectItem value="finished">Finished</SelectItem>
-                    <SelectItem value="abandoned">Abandoned</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="book-cover">Cover URL</Label>
-              <Input
-                id="book-cover"
-                type="url"
-                value={coverUrl}
-                onChange={(e) => setCoverUrl(e.target.value)}
-                placeholder="https://example.com/cover.jpg"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags</Label>
-              <TagCombobox
-                availableTags={allTags}
-                selectedTags={bookTags}
-                onTagsChange={setBookTags}
-                placeholder="Select or create tags..."
-                emptyText="No tags found. Type to create new tags."
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAddBookDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading || !title}>
-                {loading ? (
-                  <>
-                    <Spinner />
-                    Saving...
-                  </>
-                ) : (
-                  "Add Book"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
+
+            {/* Book Details Form */}
+            <form onSubmit={handleAddBook}>
+              <FieldGroup>
+                <FieldSet>
+                  <Field>
+                    <FieldLabel htmlFor="book-title">Title *</FieldLabel>
+                    <Input
+                      id="book-title"
+                      type="text"
+                      value={title}
+                      onChange={(e) => {
+                        setTitle(e.target.value);
+                        if (bookError) setBookError(null);
+                      }}
+                      placeholder="The Great Gatsby"
+                      required
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="book-author">Author</FieldLabel>
+                    <Input
+                      id="book-author"
+                      type="text"
+                      value={author}
+                      onChange={(e) => setAuthor(e.target.value)}
+                      placeholder="F. Scott Fitzgerald"
+                    />
+                  </Field>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="book-date">
+                        Published Date
+                      </FieldLabel>
+                      <Input
+                        id="book-date"
+                        type="date"
+                        value={publishedDate}
+                        onChange={(e) => setPublishedDate(e.target.value)}
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="book-status">Status</FieldLabel>
+                      <Select value={status} onValueChange={setStatus}>
+                        <SelectTrigger id="book-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="not_started">
+                            Not Started
+                          </SelectItem>
+                          <SelectItem value="reading">Reading</SelectItem>
+                          <SelectItem value="finished">Finished</SelectItem>
+                          <SelectItem value="abandoned">Abandoned</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+
+                  <Field>
+                    <FieldLabel htmlFor="book-cover">Cover URL</FieldLabel>
+                    <Input
+                      id="book-cover"
+                      type="url"
+                      value={coverUrl}
+                      onChange={(e) => setCoverUrl(e.target.value)}
+                      placeholder="https://example.com/cover.jpg"
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="tags">Tags</FieldLabel>
+                    <TagCombobox
+                      availableTags={allTags}
+                      selectedTags={bookTags}
+                      onTagsChange={setBookTags}
+                      placeholder="Select or create tags..."
+                      emptyText="No tags found. Type to create new tags."
+                    />
+                  </Field>
+                </FieldSet>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAddBookDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading || !title}>
+                    {loading ? (
+                      <>
+                        <Spinner />
+                        Saving...
+                      </>
+                    ) : (
+                      "Add Book"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </FieldGroup>
+            </form>
+          </FieldGroup>
         </DialogContent>
       </Dialog>
 
@@ -493,91 +605,104 @@ export default function BooksPage() {
               Update the book details below.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdateBook} className="space-y-4">
-            {bookError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{bookError}</AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="edit-book-title">Title *</Label>
-              <Input
-                id="edit-book-title"
-                type="text"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  if (bookError) setBookError(null);
-                }}
-                placeholder="The Great Gatsby"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-book-author">Author</Label>
-              <Input
-                id="edit-book-author"
-                type="text"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                placeholder="F. Scott Fitzgerald"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-book-date">Published Date</Label>
-                <Input
-                  id="edit-book-date"
-                  type="date"
-                  value={publishedDate}
-                  onChange={(e) => setPublishedDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-book-status">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger id="edit-book-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="not_started">Not Started</SelectItem>
-                    <SelectItem value="reading">Reading</SelectItem>
-                    <SelectItem value="finished">Finished</SelectItem>
-                    <SelectItem value="abandoned">Abandoned</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-book-cover">Cover URL</Label>
-              <Input
-                id="edit-book-cover"
-                type="url"
-                value={coverUrl}
-                onChange={(e) => setCoverUrl(e.target.value)}
-                placeholder="https://example.com/cover.jpg"
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditBookDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading || !title}>
-                {loading ? (
-                  <>
-                    <Spinner />
-                    Saving...
-                  </>
-                ) : (
-                  "Update Book"
-                )}
-              </Button>
-            </DialogFooter>
+
+          <form onSubmit={handleUpdateBook}>
+            <FieldGroup>
+              {bookError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{bookError}</AlertDescription>
+                </Alert>
+              )}
+
+              <FieldSet>
+                <Field>
+                  <FieldLabel htmlFor="edit-book-title">Title *</FieldLabel>
+                  <Input
+                    id="edit-book-title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      if (bookError) setBookError(null);
+                    }}
+                    placeholder="The Great Gatsby"
+                    required
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="edit-book-author">Author</FieldLabel>
+                  <Input
+                    id="edit-book-author"
+                    type="text"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    placeholder="F. Scott Fitzgerald"
+                  />
+                </Field>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="edit-book-date">
+                      Published Date
+                    </FieldLabel>
+                    <Input
+                      id="edit-book-date"
+                      type="date"
+                      value={publishedDate}
+                      onChange={(e) => setPublishedDate(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="edit-book-status">Status</FieldLabel>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger id="edit-book-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="not_started">Not Started</SelectItem>
+                        <SelectItem value="reading">Reading</SelectItem>
+                        <SelectItem value="finished">Finished</SelectItem>
+                        <SelectItem value="abandoned">Abandoned</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                <Field>
+                  <FieldLabel htmlFor="edit-book-cover">Cover URL</FieldLabel>
+                  <Input
+                    id="edit-book-cover"
+                    type="url"
+                    value={coverUrl}
+                    onChange={(e) => setCoverUrl(e.target.value)}
+                    placeholder="https://example.com/cover.jpg"
+                  />
+                </Field>
+              </FieldSet>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditBookDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading || !title}>
+                  {loading ? (
+                    <>
+                      <Spinner />
+                      Saving...
+                    </>
+                  ) : (
+                    "Update Book"
+                  )}
+                </Button>
+              </DialogFooter>
+            </FieldGroup>
           </form>
         </DialogContent>
       </Dialog>
