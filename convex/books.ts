@@ -1,0 +1,349 @@
+import { mutation, query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from "convex/values";
+import { api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
+
+/**
+ * Add a new book
+ */
+export const addBook = mutation({
+  args: {
+    coverUrl: v.optional(v.string()),
+    title: v.string(),
+    author: v.optional(v.string()),
+    publishedYear: v.optional(v.number()),
+    status: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    favorited: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const status = args.status || "not_started";
+
+    // Normalize tags
+    const normalizedTags: string[] = [];
+    if (args.tags) {
+      for (const tag of args.tags) {
+        if (tag.trim()) {
+          // Normalize and create/update tag, get displayName to use
+          const displayName = await ctx.runMutation(api.tags.normalizeAndCreateTag, {
+            tagName: tag,
+          });
+          normalizedTags.push(displayName);
+        }
+      }
+    }
+
+    // Remove duplicates (case-insensitive)
+    const uniqueTags = Array.from(
+      new Map(normalizedTags.map((tag) => [tag.toLowerCase(), tag])).values()
+    );
+
+    // Increment tag counts for unique tags
+    for (const tag of uniqueTags) {
+      await ctx.runMutation(api.tags.incrementTagCount, { tagName: tag });
+    }
+
+    // Set dateStarted if status is "reading"
+    const dateStarted = status === "reading" ? Date.now() : undefined;
+
+    // Insert book
+    const bookId = await ctx.db.insert("books", {
+      userId: userId,
+      coverUrl: args.coverUrl,
+      title: args.title,
+      author: args.author,
+      publishedYear: args.publishedYear,
+      status: status,
+      tags: uniqueTags,
+      favorited: args.favorited || false,
+      dateStarted: dateStarted,
+      addedAt: Date.now(),
+    });
+
+    return bookId;
+  },
+});
+
+/**
+ * List books for the authenticated user
+ * Supports filtering by status and tag
+ */
+export const listBooks = query({
+  args: {
+    status: v.optional(v.string()),
+    tag: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Query books for this user
+    const books = await ctx.db
+      .query("books")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Apply filters
+    let filtered = books;
+
+    // Filter by status
+    if (args.status) {
+      filtered = filtered.filter((b) => b.status === args.status);
+    }
+
+    // Filter by tag (case-insensitive)
+    if (args.tag) {
+      const normalizedFilterTag = args.tag.toLowerCase();
+      filtered = filtered.filter((b) =>
+        b.tags.some((t) => t.toLowerCase() === normalizedFilterTag)
+      );
+    }
+
+    // Sort by added date (newest first)
+    filtered.sort((a, b) => b.addedAt - a.addedAt);
+
+    // Apply limit
+    const limit = args.limit || 100;
+    return filtered.slice(0, limit);
+  },
+});
+
+/**
+ * Get a single book by ID
+ */
+export const getBook = query({
+  args: {
+    bookId: v.id("books"),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get book
+    const book = await ctx.db.get(args.bookId);
+    if (!book) {
+      throw new Error("Book not found");
+    }
+
+    // Check ownership
+    if (book.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+
+    return book;
+  },
+});
+
+/**
+ * Update book metadata
+ * Automatically sets dateStarted when status changes to "reading"
+ * Automatically sets dateRead when status changes to "finished"
+ */
+export const updateBook = mutation({
+  args: {
+    bookId: v.id("books"),
+    coverUrl: v.optional(v.string()),
+    title: v.optional(v.string()),
+    author: v.optional(v.string()),
+    publishedYear: v.optional(v.number()),
+    status: v.optional(v.string()),
+    favorited: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get book
+    const book = await ctx.db.get(args.bookId);
+    if (!book) {
+      throw new Error("Book not found");
+    }
+
+    // Check ownership
+    if (book.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Build updates object
+    const updates: Partial<typeof book> = {};
+
+    if (args.coverUrl !== undefined) updates.coverUrl = args.coverUrl;
+    if (args.title !== undefined) updates.title = args.title;
+    if (args.author !== undefined) updates.author = args.author;
+    if (args.publishedYear !== undefined) updates.publishedYear = args.publishedYear;
+    if (args.favorited !== undefined) updates.favorited = args.favorited;
+
+    // Handle status changes with automatic date setting
+    if (args.status !== undefined) {
+      updates.status = args.status;
+
+      // If status changed to "reading" and dateStarted is not set, set it
+      if (args.status === "reading" && !book.dateStarted) {
+        updates.dateStarted = Date.now();
+      }
+
+      // If status changed to "finished" and dateRead is not set, set it
+      if (args.status === "finished" && !book.dateRead) {
+        updates.dateRead = Date.now();
+      }
+    }
+
+    await ctx.db.patch(args.bookId, updates);
+
+    return { success: true };
+  },
+});
+
+/**
+ * Delete a book
+ */
+export const deleteBook = mutation({
+  args: {
+    bookId: v.id("books"),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get book
+    const book = await ctx.db.get(args.bookId);
+    if (!book) {
+      throw new Error("Book not found");
+    }
+
+    // Check ownership
+    if (book.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Decrement tag counts for all tags on this book
+    for (const tag of book.tags) {
+      await ctx.runMutation(api.tags.decrementTagCount, { tagName: tag });
+    }
+
+    // Delete book
+    await ctx.db.delete(args.bookId);
+
+    return { success: true };
+  },
+});
+
+/**
+ * Add a tag to a book
+ */
+export const addTag = mutation({
+  args: {
+    bookId: v.id("books"),
+    tag: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get book
+    const book = await ctx.db.get(args.bookId);
+    if (!book) {
+      throw new Error("Book not found");
+    }
+
+    // Check ownership
+    if (book.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Normalize and create/update tag, get displayName to use
+    const displayName = await ctx.runMutation(api.tags.normalizeAndCreateTag, {
+      tagName: args.tag,
+    });
+
+    // Check if tag already exists (case-insensitive)
+    const tagExists = book.tags.some(
+      (existingTag) => existingTag.toLowerCase() === displayName.toLowerCase()
+    );
+
+    if (tagExists) {
+      // Tag already exists, silently succeed (idempotent operation)
+      return { success: true, alreadyExists: true };
+    }
+
+    // Add tag
+    const tags = [...book.tags, displayName];
+
+    await ctx.db.patch(args.bookId, { tags });
+
+    // Increment tag count
+    await ctx.runMutation(api.tags.incrementTagCount, { tagName: displayName });
+
+    return { success: true, alreadyExists: false };
+  },
+});
+
+/**
+ * Remove a tag from a book
+ */
+export const removeTag = mutation({
+  args: {
+    bookId: v.id("books"),
+    tag: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get book
+    const book = await ctx.db.get(args.bookId);
+    if (!book) {
+      throw new Error("Book not found");
+    }
+
+    // Check ownership
+    if (book.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Find the tag to remove (case-insensitive)
+    const tagToRemove = book.tags.find(
+      (t) => t.toLowerCase() === args.tag.toLowerCase()
+    );
+
+    if (!tagToRemove) {
+      throw new Error("Tag not found on this book");
+    }
+
+    // Remove tag
+    const tags = book.tags.filter((t) => t !== tagToRemove);
+
+    await ctx.db.patch(args.bookId, { tags });
+
+    // Decrement tag count
+    await ctx.runMutation(api.tags.decrementTagCount, { tagName: tagToRemove });
+
+    return { success: true };
+  },
+});

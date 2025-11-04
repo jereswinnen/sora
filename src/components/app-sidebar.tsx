@@ -3,6 +3,7 @@
 import {
   LayoutDashboard,
   FileText,
+  BookOpen,
   User2,
   ChevronUp,
   LogOutIcon,
@@ -41,6 +42,11 @@ const items = [
     title: "Articles",
     url: "/articles",
     icon: FileText,
+  },
+  {
+    title: "Books",
+    url: "/books",
+    icon: BookOpen,
   },
 ];
 

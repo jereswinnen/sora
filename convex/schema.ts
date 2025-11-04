@@ -78,6 +78,24 @@ const schema = defineSchema({
     articleMargins: v.optional(v.union(v.literal("narrow"), v.literal("normal"), v.literal("wide"))),
     articleJustifyText: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
+
+  // Books: Track reading progress and metadata
+  books: defineTable({
+    userId: v.string(), // Convex Auth user ID
+    coverUrl: v.optional(v.string()),
+    title: v.string(),
+    author: v.optional(v.string()),
+    publishedYear: v.optional(v.number()),
+    status: v.string(), // "not_started", "reading", "finished", "abandoned"
+    tags: v.array(v.string()),
+    favorited: v.optional(v.boolean()),
+    dateStarted: v.optional(v.number()),
+    dateRead: v.optional(v.number()),
+    addedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_user_added", ["userId", "addedAt"]),
 });
 
 export default schema;
