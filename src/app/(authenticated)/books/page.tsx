@@ -449,30 +449,35 @@ export default function BooksPage() {
 
               {/* Search Results */}
               {searchResults.length > 0 && (
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                <div className="space-y-2 max-h-[200px] overflow-y-auto border rounded-md p-2">
                   {searchResults.map((book, index) => (
-                    <button
+                    <Button
                       key={index}
                       type="button"
+                      variant="ghost"
                       onClick={() => handleSelectBook(book)}
-                      className="w-full p-3 text-left border rounded-md hover:bg-muted transition-colors flex gap-3"
+                      className="w-full h-auto p-3 justify-start"
                     >
-                      {book.coverUrl && (
-                        <img
-                          src={book.coverUrl}
-                          alt={book.title}
-                          className="w-12 h-16 object-cover rounded"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{book.title}</div>
-                        {book.author && (
-                          <div className="text-sm text-muted-foreground truncate">
-                            {book.author}
-                          </div>
+                      <div className="flex gap-3 items-center w-full">
+                        {book.coverUrl && (
+                          <img
+                            src={book.coverUrl}
+                            alt={book.title}
+                            className="w-10 h-14 object-cover rounded flex-shrink-0"
+                          />
                         )}
+                        <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
+                          <div className="font-medium text-sm line-clamp-1 text-left w-full">
+                            {book.title}
+                          </div>
+                          {book.author && (
+                            <div className="text-xs text-muted-foreground line-clamp-1 text-left w-full">
+                              {book.author}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -550,6 +555,15 @@ export default function BooksPage() {
 
                   <Field>
                     <FieldLabel htmlFor="book-cover">Cover URL</FieldLabel>
+                    {coverUrl && (
+                      <div className="flex justify-center py-2">
+                        <img
+                          src={coverUrl}
+                          alt="Book cover preview"
+                          className="h-32 w-auto object-cover rounded border"
+                        />
+                      </div>
+                    )}
                     <Input
                       id="book-cover"
                       type="url"
@@ -682,6 +696,15 @@ export default function BooksPage() {
 
                 <Field>
                   <FieldLabel htmlFor="edit-book-cover">Cover URL</FieldLabel>
+                  {coverUrl && (
+                    <div className="flex justify-center py-2">
+                      <img
+                        src={coverUrl}
+                        alt="Book cover preview"
+                        className="h-32 w-auto object-cover rounded border"
+                      />
+                    </div>
+                  )}
                   <Input
                     id="edit-book-cover"
                     type="url"
