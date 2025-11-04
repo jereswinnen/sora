@@ -5,23 +5,32 @@ import { v } from "convex/values";
 /**
  * Get all tags for the authenticated user
  * Returns tags sorted by usage count (descending) and last used date (descending)
+ *
+ * Performance: Uses .take() with reasonable limit instead of .collect()
+ * Most users won't have more than 100 tags, and we still sort in memory
+ * since we need custom sorting logic (by count, then by date)
  */
 export const getAllTags = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     // Get authenticated user ID
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
       throw new Error("Not authenticated");
     }
 
-    // Query tags for this user
+    // Query tags for this user with a reasonable limit
+    // Most users won't have more than 100 tags
+    const limit = args.limit || 200;
     const tags = await ctx.db
       .query("tags")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+      .take(limit);
 
     // Sort by count (descending) and lastUsedAt (descending)
+    // We need to sort in memory since we have custom sorting logic
     tags.sort((a, b) => {
       if (a.count !== b.count) {
         return b.count - a.count;

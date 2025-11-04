@@ -89,6 +89,9 @@ export const addBook = mutation({
 /**
  * List books for the authenticated user
  * Supports filtering by status and tag
+ *
+ * Performance: Uses proper indexes and database-level sorting/limiting
+ * to avoid loading all books into memory
  */
 export const listBooks = query({
   args: {
@@ -103,21 +106,28 @@ export const listBooks = query({
       throw new Error("Not authenticated");
     }
 
-    // Query books for this user
-    const books = await ctx.db
-      .query("books")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+    const limit = args.limit || 100;
 
-    // Apply filters
-    let filtered = books;
-
-    // Filter by status
+    // If filtering by status, use the by_user_status index
+    // Otherwise, use by_user_added for newest-first sorting
+    let books;
     if (args.status) {
-      filtered = filtered.filter((b) => b.status === args.status);
+      books = await ctx.db
+        .query("books")
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", userId).eq("status", args.status)
+        )
+        .take(limit * 2); // Fetch more for tag filtering if needed
+    } else {
+      books = await ctx.db
+        .query("books")
+        .withIndex("by_user_added", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(args.tag ? limit * 2 : limit); // Fetch more for tag filtering if needed
     }
 
-    // Filter by tag (case-insensitive)
+    // Apply tag filter on the limited result set
+    let filtered = books;
     if (args.tag) {
       const normalizedFilterTag = args.tag.toLowerCase();
       filtered = filtered.filter((b) =>
@@ -125,11 +135,12 @@ export const listBooks = query({
       );
     }
 
-    // Sort by added date (newest first)
-    filtered.sort((a, b) => b.addedAt - a.addedAt);
+    // If we used by_user_status index, sort by addedAt (newest first)
+    if (args.status) {
+      filtered.sort((a, b) => b.addedAt - a.addedAt);
+    }
 
-    // Apply limit
-    const limit = args.limit || 100;
+    // Return up to the requested limit
     return filtered.slice(0, limit);
   },
 });

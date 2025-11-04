@@ -125,6 +125,9 @@ export const saveArticleToDB = mutation({
 /**
  * List articles for the authenticated user
  * Supports filtering by tag and archived status
+ *
+ * Performance: Uses proper indexes and database-level sorting/limiting
+ * to avoid loading all articles into memory
  */
 export const listArticles = query({
   args: {
@@ -139,13 +142,24 @@ export const listArticles = query({
       throw new Error("Not authenticated");
     }
 
-    // Query articles for this user
-    const articles = await ctx.db
-      .query("articles")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+    const limit = args.limit || 50;
 
-    // Apply filters
+    // Use by_user_saved index for efficient sorting by savedAt (newest first)
+    // This avoids loading all articles and sorting in memory
+    let query = ctx.db
+      .query("articles")
+      .withIndex("by_user_saved", (q) => q.eq("userId", userId))
+      .order("desc");
+
+    // When filtering, we need to fetch more items to account for items
+    // that will be filtered out. This is still much better than .collect()
+    const hasFilters = args.archived !== undefined || args.tag !== undefined;
+    const fetchLimit = hasFilters ? limit * 3 : limit;
+
+    // Take only what we need from the database
+    const articles = await query.take(fetchLimit);
+
+    // Apply filters on the limited result set
     let filtered = articles;
 
     // Filter by archived status
@@ -161,12 +175,81 @@ export const listArticles = query({
       );
     }
 
-    // Sort by saved date (newest first)
-    filtered.sort((a, b) => b.savedAt - a.savedAt);
-
-    // Apply limit
-    const limit = args.limit || 50;
+    // Return up to the requested limit
     return filtered.slice(0, limit);
+  },
+});
+
+/**
+ * List articles for the authenticated user (compact version)
+ * Returns articles WITHOUT the content field for better performance in list views
+ * Use this for tables/lists. Use getArticle for viewing full article content.
+ *
+ * Performance: Excludes the large 'content' field (50KB-500KB per article)
+ * which can reduce data transfer by 95%+ for list views
+ */
+export const listArticlesCompact = query({
+  args: {
+    tag: v.optional(v.string()),
+    limit: v.optional(v.number()),
+    archived: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const limit = args.limit || 50;
+
+    // Use by_user_saved index for efficient sorting by savedAt (newest first)
+    let query = ctx.db
+      .query("articles")
+      .withIndex("by_user_saved", (q) => q.eq("userId", userId))
+      .order("desc");
+
+    // When filtering, fetch extra items to account for filtering
+    const hasFilters = args.archived !== undefined || args.tag !== undefined;
+    const fetchLimit = hasFilters ? limit * 3 : limit;
+
+    // Take only what we need from the database
+    const articles = await query.take(fetchLimit);
+
+    // Apply filters on the limited result set
+    let filtered = articles;
+
+    // Filter by archived status
+    if (args.archived !== undefined) {
+      filtered = filtered.filter((a) => (a.archived || false) === args.archived);
+    }
+
+    // Filter by tag (case-insensitive)
+    if (args.tag) {
+      const normalizedFilterTag = args.tag.toLowerCase();
+      filtered = filtered.filter((a) =>
+        a.tags.some((t) => t.toLowerCase() === normalizedFilterTag)
+      );
+    }
+
+    // Return articles WITHOUT the content field (huge performance gain)
+    return filtered.slice(0, limit).map((article) => ({
+      _id: article._id,
+      _creationTime: article._creationTime,
+      userId: article.userId,
+      url: article.url,
+      title: article.title,
+      excerpt: article.excerpt,
+      imageUrl: article.imageUrl,
+      author: article.author,
+      publishedAt: article.publishedAt,
+      savedAt: article.savedAt,
+      readAt: article.readAt,
+      archived: article.archived,
+      favorited: article.favorited,
+      readingTimeMinutes: article.readingTimeMinutes,
+      tags: article.tags,
+    }));
   },
 });
 
