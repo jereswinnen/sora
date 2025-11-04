@@ -37,6 +37,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { createColumns, Article } from "./columns";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import { TagCombobox } from "@/components/ui/tag-combobox";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ArticlesPage() {
   const router = useRouter();
@@ -221,49 +222,68 @@ export default function ArticlesPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Articles DataTable */}
-      <DataTable
-        columns={columns}
-        data={tableData}
-        searchColumn="title"
-        searchPlaceholder="Filter by title..."
-        bulkActions={({ selectedRows, table }) => (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const ids = selectedRows.map((row: Article) => row._id);
-                handleBulkMarkAsRead(ids);
-                table.toggleAllPageRowsSelected(false);
-              }}
-            >
-              Mark as Read
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const ids = selectedRows.map((row: Article) => row._id);
-                handleBulkArchive(ids);
-                table.toggleAllPageRowsSelected(false);
-              }}
-            >
-              Archive
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                const ids = selectedRows.map((row: Article) => row._id);
-                handleBulkDelete(ids);
-                table.toggleAllPageRowsSelected(false);
-              }}
-            >
-              Delete
-            </Button>
-          </>
-        )}
-      />
+      {articles === undefined ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-10 w-[250px]" />
+            <Skeleton className="h-10 w-[70px]" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            {Array.from({ length: 10 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-8 w-[200px]" />
+            <Skeleton className="h-8 w-[200px]" />
+          </div>
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={tableData}
+          searchColumn="title"
+          searchPlaceholder="Filter by title..."
+          bulkActions={({ selectedRows, table }) => (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const ids = selectedRows.map((row: Article) => row._id);
+                  handleBulkMarkAsRead(ids);
+                  table.toggleAllPageRowsSelected(false);
+                }}
+              >
+                Mark as Read
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const ids = selectedRows.map((row: Article) => row._id);
+                  handleBulkArchive(ids);
+                  table.toggleAllPageRowsSelected(false);
+                }}
+              >
+                Archive
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  const ids = selectedRows.map((row: Article) => row._id);
+                  handleBulkDelete(ids);
+                  table.toggleAllPageRowsSelected(false);
+                }}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+        />
+      )}
 
       {/* Manage Tags Dialog */}
       <ManageTagsDialog
