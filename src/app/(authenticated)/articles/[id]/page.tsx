@@ -67,7 +67,7 @@ export default function ArticlePage({
   const article = useQuery(api.articles.getArticle, {
     articleId: id as Id<"articles">,
   });
-  const allTags = useQuery(api.tags.getAllTags);
+  const allTags = useQuery(api.tags.getAllTags, {});
   const userPreferences = useQuery(api.userPreferences.get);
   const updatePreferences = useMutation(api.userPreferences.updateArticleAppearance);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useAction } from "convex/react";
+import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -42,7 +42,6 @@ import { DataTable } from "@/components/ui/data-table";
 import { createColumns, Book } from "./columns";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import { TagCombobox } from "@/components/ui/tag-combobox";
-import { Skeleton } from "@/components/ui/skeleton";
 import { BOOK_STATUSES, BOOK_STATUS_CONFIG, OpenLibraryBook, BookStatus } from "./types";
 import {
   Empty,
@@ -127,7 +126,7 @@ export default function BooksPage() {
 
   // Convex hooks
   const books = useQuery(api.books.listBooks, { limit: 100 });
-  const allTags = useQuery(api.tags.getAllTags);
+  const allTags = useQuery(api.tags.getAllTags, {});
   const selectedBook = useQuery(
     api.books.getBook,
     selectedBookId ? { bookId: selectedBookId } : "skip",
@@ -337,24 +336,7 @@ export default function BooksPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Books DataTable */}
-      {books === undefined ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-10 w-[250px]" />
-            <Skeleton className="h-10 w-[70px]" />
-          </div>
-          <div className="space-y-2">
-            <Skeleton className="h-12 w-full" />
-            {Array.from({ length: 10 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-8 w-[200px]" />
-            <Skeleton className="h-8 w-[200px]" />
-          </div>
-        </div>
-      ) : books.length === 0 ? (
+      {books && books.length === 0 ? (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">

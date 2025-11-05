@@ -112,10 +112,11 @@ export const listBooks = query({
     // Otherwise, use by_user_added for newest-first sorting
     let books;
     if (args.status) {
+      const status = args.status; // Store in variable for type narrowing
       books = await ctx.db
         .query("books")
         .withIndex("by_user_status", (q) =>
-          q.eq("userId", userId).eq("status", args.status)
+          q.eq("userId", userId).eq("status", status)
         )
         .take(limit * 2); // Fetch more for tag filtering if needed
     } else {
