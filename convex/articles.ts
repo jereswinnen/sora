@@ -146,7 +146,7 @@ export const listArticles = query({
 
     // Use by_user_saved index for efficient sorting by savedAt (newest first)
     // This avoids loading all articles and sorting in memory
-    let query = ctx.db
+    const query = ctx.db
       .query("articles")
       .withIndex("by_user_saved", (q) => q.eq("userId", userId))
       .order("desc");
