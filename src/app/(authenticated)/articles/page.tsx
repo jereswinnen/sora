@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMutation, useAction, useQuery } from "convex/react";
+import { useMutation, useAction } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -64,6 +65,7 @@ export default function ArticlesPage() {
 
   // Convex hooks - listArticles now excludes content field for better performance
   // Content is only loaded when viewing a single article
+  // Using cached useQuery from convex-helpers to prevent flash when navigating between pages
   const articles = useQuery(api.articles.listArticles, { limit: 100 });
   const allTags = useQuery(api.tags.getAllTags, {});
   const selectedArticle = useQuery(

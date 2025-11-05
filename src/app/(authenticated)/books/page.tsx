@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useAction, useQuery } from "convex/react";
+import { useMutation, useAction } from "convex/react";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -124,7 +125,7 @@ export default function BooksPage() {
   const [searchResults, setSearchResults] = useState<OpenLibraryBook[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Convex hooks
+  // Convex hooks - using cached useQuery from convex-helpers to prevent flash when navigating between pages
   const books = useQuery(api.books.listBooks, { limit: 100 });
   const allTags = useQuery(api.tags.getAllTags, {});
   const selectedBook = useQuery(
