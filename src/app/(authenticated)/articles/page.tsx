@@ -14,7 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, FileTextIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +37,14 @@ import { DataTable } from "@/components/ui/data-table";
 import { createColumns, Article } from "./columns";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import { TagCombobox } from "@/components/ui/tag-combobox";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 
 export default function ArticlesPage() {
   const router = useRouter();
@@ -222,49 +230,66 @@ export default function ArticlesPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Articles DataTable */}
-      <DataTable
-        columns={columns}
-        data={tableData}
-        searchColumn="title"
-        searchPlaceholder="Filter by title..."
-        bulkActions={({ selectedRows, table }) => (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const ids = selectedRows.map((row: Article) => row._id);
-                handleBulkMarkAsRead(ids);
-                table.toggleAllPageRowsSelected(false);
-              }}
-            >
-              Mark as Read
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const ids = selectedRows.map((row: Article) => row._id);
-                handleBulkArchive(ids);
-                table.toggleAllPageRowsSelected(false);
-              }}
-            >
-              Archive
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                const ids = selectedRows.map((row: Article) => row._id);
-                handleBulkDelete(ids);
-                table.toggleAllPageRowsSelected(false);
-              }}
-            >
-              Delete
-            </Button>
-          </>
-        )}
-      />
+      {articles && articles.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileTextIcon />
+            </EmptyMedia>
+            <EmptyTitle>No Articles Yet</EmptyTitle>
+            <EmptyDescription>
+              You haven&apos;t saved any articles yet. Start by adding your first article.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button onClick={() => setAddArticleDialogOpen(true)}>Add Article</Button>
+          </EmptyContent>
+        </Empty>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={tableData}
+          searchColumn="title"
+          searchPlaceholder="Filter by title..."
+          bulkActions={({ selectedRows, table }) => (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const ids = selectedRows.map((row: Article) => row._id);
+                  handleBulkMarkAsRead(ids);
+                  table.toggleAllPageRowsSelected(false);
+                }}
+              >
+                Mark as Read
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const ids = selectedRows.map((row: Article) => row._id);
+                  handleBulkArchive(ids);
+                  table.toggleAllPageRowsSelected(false);
+                }}
+              >
+                Archive
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  const ids = selectedRows.map((row: Article) => row._id);
+                  handleBulkDelete(ids);
+                  table.toggleAllPageRowsSelected(false);
+                }}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+        />
+      )}
 
       {/* Manage Tags Dialog */}
       <ManageTagsDialog
