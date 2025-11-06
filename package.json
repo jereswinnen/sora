@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:clear": "npx convex run devTools:clearDatabase '{\"confirm\": \"YES_DELETE_ALL_DATA\"}'",
-    "db:seed": "npx convex run devTools:addDummyData",
+    "db:seed": "npx convex run devTools:addDummyData '{\"auth0Subject\": \"auth0|690ce93f5124e5c8ba7134e3\"}'",
     "db:reset": "pnpm db:clear && pnpm db:seed"
   },
   "dependencies": {

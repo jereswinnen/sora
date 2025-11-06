@@ -142,16 +142,22 @@ const DEFAULT_DUMMY_TAGS: string[] = [];
  * Safety: Only works in development deployments
  *
  * Usage:
- *   # Use defaults
- *   npx convex run devTools:addDummyData
+ *   # Use defaults (replace with your Auth0 subject from the token payload)
+ *   npx convex run devTools:addDummyData '{"auth0Subject": "auth0|690ce93f5124e5c8ba7134e3"}'
  *
  *   # Or provide custom URLs/tags
- *   npx convex run devTools:addDummyData '{"urls": ["https://example.com/article"], "tags": ["custom"]}'
+ *   npx convex run devTools:addDummyData '{"auth0Subject": "auth0|690ce93f5124e5c8ba7134e3", "urls": ["https://example.com/article"], "tags": ["custom"]}'
+ *
+ * To find your Auth0 subject:
+ *   1. Log into your app
+ *   2. Open browser console and run: localStorage.getItem('@@auth0spajs@@::dnhDcQV8OqcNnDGi5nNEqJoKmsFVxPE1::@@user@@')
+ *   3. Look for the "sub" field in the JSON (e.g., "auth0|690ce93f5124e5c8ba7134e3")
  */
 export const addDummyData = action({
   args: {
     urls: v.optional(v.array(v.string())),
     tags: v.optional(v.array(v.string())),
+    auth0Subject: v.string(), // Required: Your Auth0 user ID (e.g., "auth0|690ce93f5124e5c8ba7134e3")
   },
   handler: async (ctx, args) => {
     // Safety check: Dev tools must be enabled
@@ -173,11 +179,13 @@ export const addDummyData = action({
       articles = DEFAULT_DUMMY_ARTICLES;
     }
 
-    // Find the first user to associate articles with
-    const user = await ctx.runQuery(internal.helpers.getFirstUser);
+    // Get user info using the provided Auth0 subject
+    const user = await ctx.runQuery(internal.helpers.getFirstUser, {
+      auth0Subject: args.auth0Subject,
+    });
     if (!user) {
       throw new Error(
-        "No users found in database. Please sign up in the app first, then run this command.",
+        "Invalid auth0Subject provided. Please check your Auth0 user ID.",
       );
     }
 

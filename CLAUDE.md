@@ -76,20 +76,29 @@ iOS App (Swift) → Convex Functions → Convex Database
 
 ### Authentication Pattern
 
-**Always use the official Convex Auth API:**
+**⚠️ CRITICAL:** With Auth0, always use `ctx.auth.getUserIdentity()` to get the authenticated user:
 
 ```typescript
-import { getAuthUserId } from "@convex-dev/auth/server";
-
-const userId = await getAuthUserId(ctx);
-if (userId === null) {
-  throw new Error("Not authenticated");
-}
+export const myFunction = mutation({
+  handler: async (ctx, args) => {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject; // Use Auth0 subject as userId
+    // Use userId for database operations...
+  },
+});
 ```
 
-This returns the stable user document ID (`Id<"users">`), which remains consistent across sessions. Use this `userId` for all database operations.
+**Why this pattern:**
+- With Auth0, user identities are stored in JWT tokens, not in Convex's users table
+- `identity.subject` contains the Auth0 user ID (e.g., `auth0|690ce93f5124e5c8ba7134e3`)
+- This Auth0 subject serves as the userId for all database operations
+- The `users`, `authSessions`, and `authAccounts` tables remain empty (this is normal)
 
-**Never manually parse tokens** or use `getUserIdentity().subject` directly.
+**DO NOT use `getAuthUserId()`** - it expects a user document in the database, which doesn't exist with Auth0.
 
 ### Frontend Structure
 
@@ -131,8 +140,8 @@ Business logic stays in Convex. Clients are thin.
 ## Environment Variables
 
 **Convex (set via `npx convex env set`):**
-- `AUTH0_DOMAIN` - Auth0 tenant domain (e.g., `dev-abc123.auth0.com`)
-- `AUTH0_AUDIENCE` - Optional. Auth0 API identifier (defaults to `https://{AUTH0_DOMAIN}/api/v2/`)
+- `AUTH0_DOMAIN` - Auth0 tenant domain (e.g., `dev-abc123.auth0.com`) - without https:// prefix
+- `AUTH0_CLIENT_ID` - Auth0 application client ID (same as `NEXT_PUBLIC_AUTH0_CLIENT_ID`)
 
 **Next.js (`.env.local`):**
 - `NEXT_PUBLIC_CONVEX_URL` - Convex deployment URL (auto-created by Convex)

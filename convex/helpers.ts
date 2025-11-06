@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 /**
  * Internal helper functions
@@ -8,13 +9,32 @@ import { internal } from "./_generated/api";
  */
 
 /**
- * Get the first user in the database
+ * Get the current authenticated user's ID from Auth0
+ * With Auth0, we use the Auth0 subject as the userId (e.g., "auth0|...")
+ *
+ * NOTE: This requires you to be logged in and call it from an authenticated context
  */
 export const getFirstUser = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const user = await ctx.db.query("users").first();
-    return user;
+  args: {
+    // Pass the Auth0 subject manually since internal queries don't have auth context
+    auth0Subject: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (!args.auth0Subject) {
+      throw new Error(
+        "No auth0Subject provided. You must be logged in first. " +
+        "Pass your Auth0 user ID (found at /debug-auth or from Auth0 dashboard) as: " +
+        '\'{"auth0Subject": "auth0|..."}\''
+      );
+    }
+
+    // With Auth0, we don't store users in the database
+    // Return a mock user object using the Auth0 subject as the ID
+    return {
+      _id: args.auth0Subject as Id<"users">,
+      _creationTime: Date.now(),
+      email: "dummy@example.com", // This won't be used
+    };
   },
 });
 
@@ -24,7 +44,7 @@ export const getFirstUser = internalQuery({
  */
 export const saveArticleForUser = internalMutation({
   args: {
-    userId: v.id("users"),
+    userId: v.string(), // Changed from v.id("users") to v.string() for Auth0 subjects
     url: v.string(),
     title: v.string(),
     content: v.string(),

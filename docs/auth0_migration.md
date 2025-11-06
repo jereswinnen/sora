@@ -68,16 +68,16 @@ export default {
 export default {
   providers: [
     {
-      domain: process.env.AUTH0_DOMAIN,
-      applicationID: process.env.AUTH0_AUDIENCE ?? `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
+      domain: `https://${process.env.AUTH0_DOMAIN}/`,
+      applicationID: process.env.AUTH0_CLIENT_ID!,
     },
   ],
 };
 ```
 
 **Changes:**
-- Updated domain to use Auth0 domain from environment variables
-- Updated applicationID to use Auth0 audience (defaults to Auth0 Management API URL)
+- Updated domain to use Auth0 domain with `https://` prefix and trailing slash (critical for token validation)
+- Updated applicationID to use Auth0 Client ID (not audience - Auth0 ID tokens use client ID as audience)
 
 ### 3. Frontend Configuration
 
@@ -184,10 +184,53 @@ const handleSignOut = () => {
 - Auth0 handles redirect after logout automatically
 - Removed manual router navigation
 
-### 4. Bug Fix
+### 4. Critical Authentication Pattern Change
 
-Fixed an unrelated ESLint error in `convex/articles.ts`:
-- Changed `let query` to `const query` (line 149)
+**⚠️ MOST IMPORTANT CHANGE:** With Auth0, `getAuthUserId()` no longer works correctly. You must use `ctx.auth.getUserIdentity()` instead.
+
+**Before (all queries/mutations/actions):**
+```typescript
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+export const myFunction = mutation({
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+    // Use userId...
+  },
+});
+```
+
+**After:**
+```typescript
+export const myFunction = mutation({
+  handler: async (ctx, args) => {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject; // Use Auth0 subject as userId
+    // Use userId...
+  },
+});
+```
+
+**Why this change is necessary:**
+- With Auth0, user identities are stored in the JWT token, not in Convex's users table
+- `getAuthUserId()` expects a user document in the database, which doesn't exist with Auth0
+- `identity.subject` contains the Auth0 user ID (e.g., `auth0|690ce93f5124e5c8ba7134e3`)
+- This Auth0 subject serves as the userId for all database operations
+
+**Files updated:**
+- `convex/articles.ts` - All queries, mutations, and actions
+- `convex/books.ts` - All queries, mutations, and actions
+- `convex/tags.ts` - All queries and mutations
+- `convex/userPreferences.ts` - All queries and mutations
+- `convex/users.ts` - viewer query
+- `convex/helpers.ts` - Internal functions
 
 ## Environment Variables
 
@@ -216,12 +259,12 @@ Set these environment variables in Convex using the CLI:
 
 ```bash
 npx convex env set AUTH0_DOMAIN your-tenant.auth0.com
-npx convex env set AUTH0_AUDIENCE https://your-api-identifier
+npx convex env set AUTH0_CLIENT_ID your_auth0_client_id
 ```
 
 **Notes:**
-- `AUTH0_DOMAIN`: Your Auth0 tenant domain (e.g., `dev-abc123.auth0.com`)
-- `AUTH0_AUDIENCE`: Optional. If not set, defaults to `https://{AUTH0_DOMAIN}/api/v2/`
+- `AUTH0_DOMAIN`: Your Auth0 tenant domain (e.g., `dev-abc123.auth0.com`) - **without** https:// prefix
+- `AUTH0_CLIENT_ID`: Your Auth0 application client ID (same as NEXT_PUBLIC_AUTH0_CLIENT_ID)
 
 ## Auth0 Setup Instructions
 
@@ -292,8 +335,10 @@ NEXT_PUBLIC_AUTH0_CLIENT_ID=aBcDeFgHiJkLmNoPqRsTuVwXyZ123456
 Run these commands:
 ```bash
 npx convex env set AUTH0_DOMAIN dev-abc123.auth0.com
-npx convex env set AUTH0_AUDIENCE https://your-api-identifier  # Optional
+npx convex env set AUTH0_CLIENT_ID aBcDeFgHiJkLmNoPqRsTuVwXyZ123456
 ```
+
+**Important:** Use the same Client ID that you added to `.env.local`
 
 ### Step 7: Test Authentication
 
@@ -314,12 +359,30 @@ npx convex env set AUTH0_AUDIENCE https://your-api-identifier  # Optional
 
 ## Database Schema
 
-**No database changes required!** The existing schema continues to work seamlessly because:
+**Schema changes:** The schema definition remains the same, but Auth0 changes how authentication data is stored.
 
-1. Convex Auth tables (`authTables`) work with both Password and Auth0 providers
-2. User IDs are managed consistently by Convex Auth
-3. The `getAuthUserId(ctx)` function works identically regardless of the auth provider
-4. All existing articles, books, and tags remain associated with the correct users
+### What Changed
+
+**With Password Provider (Before):**
+- User data stored in `users` table
+- Auth sessions stored in `authSessions` table
+- Auth accounts stored in `authAccounts` table
+- User ID was a Convex document ID (`Id<"users">`)
+
+**With Auth0 (After):**
+- ✅ `users`, `authSessions`, `authAccounts` tables remain EMPTY (Auth0 stores this data)
+- ✅ User identity comes from JWT token claims
+- ✅ User ID is the Auth0 subject (e.g., `auth0|690ce93f5124e5c8ba7134e3`)
+- ✅ All existing articles, books, and tags continue to work (they reference userId as a string)
+
+### Why Auth Tables Are Empty
+
+Auth0 is an external identity provider, so:
+- User profiles are stored in Auth0's database, not Convex
+- Sessions are managed by Auth0 refresh tokens, not Convex sessions
+- The JWT token contains all necessary user information
+
+**This is normal and expected!** The empty auth tables do not indicate an error.
 
 ## Authentication Flow
 
@@ -391,6 +454,34 @@ When building the iOS app, follow these steps:
 
 ## Troubleshooting
 
+### "No auth provider found matching the given token"
+
+**Cause:** JWT issuer doesn't match configured domain in `auth.config.ts`
+
+**Solution:**
+1. Ensure `auth.config.ts` includes the trailing slash: `domain: \`https://\${process.env.AUTH0_DOMAIN}/\``
+2. Verify Convex environment variables: `npx convex env list`
+3. Check that `AUTH0_DOMAIN` is set without `https://` prefix (e.g., `dev-abc123.auth0.com`)
+
+### "Invalid ID length 5" or "Unable to decode ID"
+
+**Cause:** Code is trying to use Auth0 subject as a Convex document ID
+
+**Solution:**
+Replace all `getAuthUserId()` calls with the Auth0 pattern:
+```typescript
+const identity = await ctx.auth.getUserIdentity();
+if (!identity) throw new Error("Not authenticated");
+const userId = identity.subject;
+```
+
+### Articles/books not showing despite being in database
+
+**Cause:** Query using `getAuthUserId()` instead of `getUserIdentity().subject`
+
+**Solution:**
+Same as above - update authentication pattern in all queries and mutations
+
 ### "Invalid state" error after redirect
 
 **Cause:** Auth0 redirect_uri doesn't match configured callback URL
@@ -400,23 +491,14 @@ When building the iOS app, follow these steps:
 2. Ensure it includes `http://localhost:3000` and your production domain
 3. Clear browser cache and try again
 
-### "Audience not found" error
-
-**Cause:** Auth0 audience configuration mismatch
-
-**Solution:**
-1. Check Convex environment variables: `npx convex env list`
-2. Verify `AUTH0_DOMAIN` is set correctly
-3. If using custom audience, verify `AUTH0_AUDIENCE` matches Auth0 API identifier
-
 ### User email not showing in sidebar
 
-**Cause:** Convex query not returning user data
+**Cause:** `users.viewer` query not returning user data correctly
 
 **Solution:**
 1. Check browser console for errors
-2. Verify `api.users.viewer` query exists in `convex/users.ts`
-3. Ensure query uses `getAuthUserId(ctx)` correctly
+2. Verify `api.users.viewer` uses `ctx.auth.getUserIdentity()` pattern
+3. Ensure it returns user data from the identity token, not database
 
 ### Session expires immediately
 
@@ -426,6 +508,17 @@ When building the iOS app, follow these steps:
 1. Check Auth0 Dashboard > Applications > Settings > Advanced > Grant Types
 2. Ensure "Refresh Token" is enabled
 3. Verify `useRefreshTokens={true}` in ConvexClientProvider
+
+### Seed script fails with "No auth0Subject provided"
+
+**Cause:** Internal queries need explicit userId parameter
+
+**Solution:**
+1. Get your Auth0 subject from the dashboard or `/debug-auth`
+2. Update `package.json` db:seed script with your Auth0 subject:
+   ```json
+   "db:seed": "npx convex run devTools:addDummyData '{\"auth0Subject\": \"auth0|your_id_here\"}'"
+   ```
 
 ## Additional Resources
 
