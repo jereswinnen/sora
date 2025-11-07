@@ -1,5 +1,4 @@
 import { action, mutation, query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 
@@ -17,11 +16,12 @@ export const addBook = mutation({
     favorited: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Check if book already exists for this user (same title and author)
     const existing = await ctx.db
@@ -100,11 +100,12 @@ export const listBooks = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     const limit = args.limit || 100;
 
@@ -154,11 +155,12 @@ export const getBook = query({
     bookId: v.id("books"),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get book
     const book = await ctx.db.get(args.bookId);
@@ -191,11 +193,12 @@ export const updateBook = mutation({
     favorited: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get book
     const book = await ctx.db.get(args.bookId);
@@ -246,11 +249,12 @@ export const deleteBook = mutation({
     bookId: v.id("books"),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get book
     const book = await ctx.db.get(args.bookId);
@@ -284,11 +288,12 @@ export const addTag = mutation({
     tag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get book
     const book = await ctx.db.get(args.bookId);
@@ -337,11 +342,12 @@ export const removeTag = mutation({
     tag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get book
     const book = await ctx.db.get(args.bookId);
@@ -385,8 +391,8 @@ export const searchOpenLibrary = action({
   },
   handler: async (ctx, args) => {
     // Authenticate user
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
 

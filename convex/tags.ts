@@ -1,5 +1,4 @@
 import { internalMutation, mutation, query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 /**
@@ -15,11 +14,12 @@ export const getAllTags = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Query tags for this user with a reasonable limit
     // Most users won't have more than 100 tags
@@ -65,11 +65,12 @@ export const normalizeAndCreateTag = mutation({
     tagName: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Normalize the tag name
     const normalizedName = normalizeTagName(args.tagName);
@@ -109,11 +110,12 @@ export const incrementTagCount = mutation({
     tagName: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Normalize the tag name
     const normalizedName = normalizeTagName(args.tagName);
@@ -143,11 +145,12 @@ export const decrementTagCount = mutation({
     tagName: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Normalize the tag name
     const normalizedName = normalizeTagName(args.tagName);
@@ -173,7 +176,7 @@ export const decrementTagCount = mutation({
  */
 export const normalizeAndCreateTagForUser = internalMutation({
   args: {
-    userId: v.id("users"),
+    userId: v.string(), // Changed to v.string() for Auth0 subjects
     tagName: v.string(),
   },
   handler: async (ctx, args) => {
@@ -215,7 +218,7 @@ export const normalizeAndCreateTagForUser = internalMutation({
  */
 export const incrementTagCountForUser = internalMutation({
   args: {
-    userId: v.id("users"),
+    userId: v.string(), // Changed to v.string() for Auth0 subjects
     tagName: v.string(),
   },
   handler: async (ctx, args) => {

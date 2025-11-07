@@ -10,7 +10,7 @@ Sora is a personal article management app (MVP) designed for extensibility. It s
 - **Frontend**: Next.js 16 (App Router), React 19, TailwindCSS 4
 - **UI Components**: shadcn/ui (installed and configured)
 - **Backend**: Convex (serverless backend-as-a-service)
-- **Authentication**: Convex Auth with Password provider (email + password)
+- **Authentication**: Auth0 (enterprise-grade authentication for web and iOS)
 - **Deployment**: Web app (Next.js) + future iOS app planned
 
 ## Development Commands
@@ -68,41 +68,50 @@ iOS App (Swift) → Convex Functions → Convex Database
 
 **convex/parser.ts** - Article content extraction using Cheerio (server-side HTML parsing)
 
-**convex/auth.ts** - Convex Auth configuration with Password provider
+**convex/auth.ts** - Convex Auth configuration (integrates with Auth0)
 
-**convex/auth.config.ts** - Required JWT provider configuration for Convex Auth
+**convex/auth.config.ts** - JWT provider configuration for Auth0 token validation
 
 **convex/schema.ts** - Database schema with extensibility in mind (see comments for future content types)
 
 ### Authentication Pattern
 
-**Always use the official Convex Auth API:**
+**⚠️ CRITICAL:** With Auth0, always use `ctx.auth.getUserIdentity()` to get the authenticated user:
 
 ```typescript
-import { getAuthUserId } from "@convex-dev/auth/server";
-
-const userId = await getAuthUserId(ctx);
-if (userId === null) {
-  throw new Error("Not authenticated");
-}
+export const myFunction = mutation({
+  handler: async (ctx, args) => {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject; // Use Auth0 subject as userId
+    // Use userId for database operations...
+  },
+});
 ```
 
-This returns the stable user document ID (`Id<"users">`), which remains consistent across sessions. Use this `userId` for all database operations.
+**Why this pattern:**
+- With Auth0, user identities are stored in JWT tokens, not in Convex's users table
+- `identity.subject` contains the Auth0 user ID (e.g., `auth0|690ce93f5124e5c8ba7134e3`)
+- This Auth0 subject serves as the userId for all database operations
+- The `users`, `authSessions`, and `authAccounts` tables remain empty (this is normal)
 
-**Never manually parse tokens** or use `getUserIdentity().subject` directly.
+**DO NOT use `getAuthUserId()`** - it expects a user document in the database, which doesn't exist with Auth0.
 
 ### Frontend Structure
 
 **src/app/page.tsx** - Root redirect (auth check → dashboard or auth page)
 
-**src/app/auth/page.tsx** - Sign up / sign in page with `useConvexAuth()` for proper loading states
+**src/app/auth/page.tsx** - Auth page that redirects to Auth0 Universal Login
 
 **src/app/dashboard/page.tsx** - Main UI with article CRUD operations calling Convex functions via:
 - `useQuery(api.articles.listArticles)` - Real-time article list
 - `useAction(api.articles.saveArticle)` - Save articles
 - `useMutation(api.articles.deleteArticle)` - Delete, tag, archive operations
 
-**src/components/ConvexClientProvider.tsx** - Wraps app with `ConvexAuthProvider`
+**src/components/providers/ConvexClientProvider.tsx** - Wraps app with `Auth0Provider` and `ConvexProviderWithAuth0`
 
 **src/lib/env.ts** - Type-safe environment variable validation with Zod
 
@@ -131,19 +140,23 @@ Business logic stays in Convex. Clients are thin.
 ## Environment Variables
 
 **Convex (set via `npx convex env set`):**
-- `JWT_PRIVATE_KEY` - RSA private key for JWT signing
-- `JWKS` - JSON Web Key Set for JWT verification
-- `SITE_URL` - OAuth/magic link redirect URL (e.g., `http://localhost:3000`)
+- `AUTH0_DOMAIN` - Auth0 tenant domain (e.g., `dev-abc123.auth0.com`) - without https:// prefix
+- `AUTH0_CLIENT_ID` - Auth0 application client ID (same as `NEXT_PUBLIC_AUTH0_CLIENT_ID`)
 
-**Next.js (`.env.local`, auto-created by Convex):**
-- `NEXT_PUBLIC_CONVEX_URL` - Convex deployment URL
+**Next.js (`.env.local`):**
+- `NEXT_PUBLIC_CONVEX_URL` - Convex deployment URL (auto-created by Convex)
+- `NEXT_PUBLIC_AUTH0_DOMAIN` - Auth0 tenant domain (same as Convex `AUTH0_DOMAIN`)
+- `NEXT_PUBLIC_AUTH0_CLIENT_ID` - Auth0 application client ID
+
+See `.env.local.example` for template and `docs/auth0_migration.md` for complete setup instructions.
 
 ## Important Notes
 
 **Authentication:**
-- Convex Auth uses stable user IDs across sessions
+- Auth0 provides enterprise-grade authentication with support for web and iOS
 - Auth state must be loaded before navigation (use `useConvexAuth()` hook)
-- Small delay after `signIn()` helps ensure auth state propagates
+- User sessions persist with refresh tokens
+- See `docs/auth0_migration.md` for complete Auth0 setup and configuration
 
 **Real-time Updates:**
 - Convex queries are reactive - changes appear instantly across clients

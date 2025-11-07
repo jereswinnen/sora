@@ -1,5 +1,4 @@
 import { action, mutation, query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { parseArticle } from "./parser";
@@ -15,9 +14,9 @@ export const saveArticle = action({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args): Promise<Id<"articles">> => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Authenticate user (mutation will get userId from auth context)
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
 
@@ -65,11 +64,12 @@ export const saveArticleToDB = mutation({
     tags: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Check if article already exists for this user
     const existing = await ctx.db
@@ -136,17 +136,18 @@ export const listArticles = query({
     archived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     const limit = args.limit || 50;
 
     // Use by_user_saved index for efficient sorting by savedAt (newest first)
     // This avoids loading all articles and sorting in memory
-    let query = ctx.db
+    const query = ctx.db
       .query("articles")
       .withIndex("by_user_saved", (q) => q.eq("userId", userId))
       .order("desc");
@@ -205,11 +206,12 @@ export const getArticle = query({
     articleId: v.id("articles"),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get article
     const article = await ctx.db.get(args.articleId);
@@ -234,11 +236,12 @@ export const deleteArticle = mutation({
     articleId: v.id("articles"),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get article
     const article = await ctx.db.get(args.articleId);
@@ -272,11 +275,12 @@ export const addTag = mutation({
     tag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get article
     const article = await ctx.db.get(args.articleId);
@@ -325,11 +329,12 @@ export const removeTag = mutation({
     tag: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get article
     const article = await ctx.db.get(args.articleId);
@@ -374,11 +379,12 @@ export const updateArticle = mutation({
     favorited: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user ID
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject; // Use Auth0 subject as userId
 
     // Get article
     const article = await ctx.db.get(args.articleId);

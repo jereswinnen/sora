@@ -9,8 +9,7 @@ import {
   LayoutDashboardIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useRouter } from "next/navigation";
+import { useAuth0 } from "@auth0/auth0-react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
@@ -51,13 +50,15 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const { signOut } = useAuthActions();
-  const router = useRouter();
+  const { logout } = useAuth0();
   const viewer = useQuery(api.users.viewer);
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/auth");
+  const handleSignOut = () => {
+    logout({
+      logoutParams: {
+        returnTo: typeof window !== "undefined" ? window.location.origin : undefined,
+      },
+    });
   };
 
   return (
