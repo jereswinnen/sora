@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
+import { useKeyboardShortcut, singleKey } from "@/hooks/use-keyboard-shortcut";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +97,9 @@ export default function ArticlesPage() {
     });
     return () => setHeaderAction(null);
   }, [setHeaderAction]);
+
+  // Keyboard shortcut: C to add article
+  useKeyboardShortcut(singleKey("c"), () => setAddArticleDialogOpen(true));
 
   // Check for query params to trigger actions (e.g., from command palette)
   useEffect(() => {
@@ -417,7 +421,7 @@ export default function ArticlesPage() {
                   </>
                 ) : (
                   <>
-                    Save Article <Kbd>⏎</Kbd>
+                    Add Article <Kbd>⏎</Kbd>
                   </>
                 )}
               </Button>
