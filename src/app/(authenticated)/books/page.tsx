@@ -642,7 +642,7 @@ export default function BooksPage() {
                     variant="outline"
                     onClick={() => setAddBookDialogOpen(false)}
                   >
-                    Cancel
+                    Cancel <Kbd>Esc</Kbd>
                   </Button>
                   <Button type="submit" disabled={loading || !title}>
                     {loading ? (
@@ -651,7 +651,9 @@ export default function BooksPage() {
                         Saving...
                       </>
                     ) : (
-                      "Add Book"
+                      <>
+                        Save Book <Kbd>⏎</Kbd>
+                      </>
                     )}
                   </Button>
                 </DialogFooter>
@@ -793,7 +795,7 @@ export default function BooksPage() {
                     </>
                   ) : (
                     <>
-                      Save Changes <Kbd>⏎</Kbd>
+                      Update Book <Kbd>⏎</Kbd>
                     </>
                   )}
                 </Button>
