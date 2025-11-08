@@ -9,6 +9,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import {
   createNavigationCommands,
@@ -48,22 +49,25 @@ export function CommandPalette() {
       <CommandInput placeholder="Type a command or search..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        {commandGroups.map((group) => (
-          <CommandGroup key={group.heading} heading={group.heading}>
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem
-                  key={item.id}
-                  keywords={item.keywords}
-                  onSelect={() => handleSelect(item.onSelect)}
-                >
-                  {Icon && <Icon />}
-                  <span>{item.label}</span>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
+        {commandGroups.map((group, index) => (
+          <div key={group.heading}>
+            <CommandGroup heading={group.heading}>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <CommandItem
+                    key={item.id}
+                    keywords={item.keywords}
+                    onSelect={() => handleSelect(item.onSelect)}
+                  >
+                    {Icon && <Icon />}
+                    <span>{item.label}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            {index < commandGroups.length - 1 && <CommandSeparator />}
+          </div>
         ))}
       </CommandList>
     </CommandDialog>

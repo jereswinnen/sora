@@ -3,7 +3,8 @@ import {
   LayoutDashboardIcon,
   FileTextIcon,
   LibraryIcon,
-  PlusIcon,
+  BookPlusIcon,
+  FilePlusIcon,
 } from "lucide-react";
 
 export interface CommandItem {
@@ -61,22 +62,22 @@ export function createActionCommands(router: {
 }): CommandGroup[] {
   return [
     {
-      heading: "Add",
+      heading: "Add...",
       items: [
         {
           id: "add-article",
           label: "Add Article",
           description: "Save a new article",
-          icon: PlusIcon,
-          keywords: ["new", "create", "save", "url"],
+          icon: FilePlusIcon,
+          keywords: ["add", "new", "create", "save", "url"],
           onSelect: () => router.push("/articles?action=add"),
         },
         {
           id: "add-book",
           label: "Add Book",
           description: "Add a new book to your library",
-          icon: PlusIcon,
-          keywords: ["new", "create", "library"],
+          icon: BookPlusIcon,
+          keywords: ["add", "new", "create", "library"],
           onSelect: () => router.push("/books?action=add"),
         },
       ],
