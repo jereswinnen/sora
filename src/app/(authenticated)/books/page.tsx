@@ -795,7 +795,7 @@ export default function BooksPage() {
                     </>
                   ) : (
                     <>
-                      Update Book <Kbd>⏎</Kbd>
+                      Save Changes <Kbd>⏎</Kbd>
                     </>
                   )}
                 </Button>
