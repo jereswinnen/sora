@@ -13,6 +13,7 @@ export interface CommandItem {
   description?: string;
   icon?: LucideIcon;
   keywords?: string[];
+  shortcut?: string; // Keyboard shortcut (e.g., "⌘1", "C")
   onSelect: () => void;
 }
 
@@ -34,6 +35,7 @@ export function createNavigationCommands(router: {
           description: "Go to dashboard",
           icon: LayoutDashboardIcon,
           keywords: ["home", "main"],
+          shortcut: "⌘1",
           onSelect: () => router.push("/dashboard"),
         },
         {
@@ -42,6 +44,7 @@ export function createNavigationCommands(router: {
           description: "View all articles",
           icon: FileTextIcon,
           keywords: ["read", "saved", "reading"],
+          shortcut: "⌘2",
           onSelect: () => router.push("/articles"),
         },
         {
@@ -50,6 +53,7 @@ export function createNavigationCommands(router: {
           description: "View all books",
           icon: LibraryIcon,
           keywords: ["library", "reading"],
+          shortcut: "⌘3",
           onSelect: () => router.push("/books"),
         },
       ],
@@ -70,6 +74,7 @@ export function createActionCommands(router: {
           description: "Save a new article",
           icon: FilePlusIcon,
           keywords: ["add", "new", "create", "save", "url"],
+          shortcut: "C",
           onSelect: () => router.push("/articles?action=add"),
         },
         {
@@ -78,6 +83,7 @@ export function createActionCommands(router: {
           description: "Add a new book to your library",
           icon: BookPlusIcon,
           keywords: ["add", "new", "create", "library"],
+          shortcut: "C",
           onSelect: () => router.push("/books?action=add"),
         },
       ],

@@ -11,6 +11,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { Kbd } from "@/components/ui/kbd";
 import {
   createNavigationCommands,
   createActionCommands,
@@ -62,6 +63,7 @@ export function CommandPalette() {
                   >
                     {Icon && <Icon />}
                     <span>{item.label}</span>
+                    {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
                   </CommandItem>
                 );
               })}

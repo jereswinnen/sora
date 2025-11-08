@@ -8,6 +8,7 @@ import { Id } from "../../../../convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useBookActions } from "@/hooks/use-book-actions";
+import { useKeyboardShortcut, singleKey } from "@/hooks/use-keyboard-shortcut";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -160,6 +161,12 @@ export default function BooksPage() {
     });
     return () => setHeaderAction(null);
   }, [setHeaderAction]);
+
+  // Keyboard shortcut: C to add book
+  useKeyboardShortcut(singleKey("c"), () => {
+    resetForm();
+    setAddBookDialogOpen(true);
+  });
 
   // Check for query params to trigger actions (e.g., from command palette)
   useEffect(() => {
