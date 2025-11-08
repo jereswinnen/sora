@@ -4,9 +4,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useRef } from "react";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
+import { TextHighlighter } from "@funktechno/texthighlighter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AppearancePopover, type AppearanceSettings } from "@/components/appearance-popover";
 import {
@@ -52,6 +53,9 @@ export default function ArticlePage({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
 
+  // Ref for article content to enable text highlighting
+  const articleContentRef = useRef<HTMLDivElement>(null);
+
   // Appearance settings state - initialized from database or defaults
   const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>({
     theme: "sans",
@@ -86,6 +90,40 @@ export default function ArticlePage({
       });
     }
   }, [userPreferences]);
+
+  // Initialize text highlighter
+  useEffect(() => {
+    if (!articleContentRef.current || !article) return;
+
+    const highlighter = new TextHighlighter(articleContentRef.current, {
+      color: "#fbbf2480", // Amber/yellow with transparency
+    });
+
+    const handleMouseUp = () => {
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim().length > 0) {
+        highlighter.doHighlight();
+      }
+    };
+
+    // Handle click on highlighted text to remove it
+    const handleHighlightClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains("highlighted")) {
+        highlighter.removeHighlights(target);
+      }
+    };
+
+    const contentElement = articleContentRef.current;
+    contentElement.addEventListener("mouseup", handleMouseUp);
+    contentElement.addEventListener("click", handleHighlightClick);
+
+    return () => {
+      contentElement.removeEventListener("mouseup", handleMouseUp);
+      contentElement.removeEventListener("click", handleHighlightClick);
+      highlighter.destroy();
+    };
+  }, [article]);
 
   const {
     handleToggleFavorite: toggleFavorite,
@@ -313,6 +351,7 @@ export default function ArticlePage({
         {/* Article Body */}
         <div className="prose prose-lg max-w-none">
           <div
+            ref={articleContentRef}
             dangerouslySetInnerHTML={{ __html: article.content }}
             className={`article-body ${appearanceSettings.justifyText ? "text-justify" : ""}`}
           />
