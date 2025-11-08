@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { HeaderProvider, useHeaderAction } from "@/components/layout-header-context";
 import { ArrowLeftIcon } from "lucide-react";
+import { CommandPalette } from "@/components/command-palette";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -76,6 +77,7 @@ export default function DashboardLayout({
 }) {
   return (
     <HeaderProvider>
+      <CommandPalette />
       <LayoutContent>{children}</LayoutContent>
     </HeaderProvider>
   );
