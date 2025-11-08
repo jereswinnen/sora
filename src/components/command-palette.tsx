@@ -10,14 +10,21 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { createNavigationCommands, CommandGroup as CommandGroupType } from "@/config/commands";
+import {
+  createNavigationCommands,
+  createActionCommands,
+  CommandGroup as CommandGroupType,
+} from "@/config/commands";
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
-  // Get all command groups
-  const commandGroups: CommandGroupType[] = createNavigationCommands(router);
+  // All commands are static and always available
+  const commandGroups: CommandGroupType[] = [
+    ...createNavigationCommands(router),
+    ...createActionCommands(router),
+  ];
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {

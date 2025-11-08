@@ -5,6 +5,7 @@ import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "../../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useBookActions } from "@/hooks/use-book-actions";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -98,6 +99,8 @@ function cleanErrorMessage(err: unknown): string {
 }
 
 export default function BooksPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { setHeaderAction } = useHeaderAction();
 
   // Form state
@@ -157,6 +160,17 @@ export default function BooksPage() {
     });
     return () => setHeaderAction(null);
   }, [setHeaderAction]);
+
+  // Check for query params to trigger actions (e.g., from command palette)
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "add") {
+      resetForm();
+      setAddBookDialogOpen(true);
+      // Clean up URL without triggering a page reload
+      window.history.replaceState({}, "", "/books");
+    }
+  }, [searchParams]);
 
   // Load book data into form when editing
   useEffect(() => {

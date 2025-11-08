@@ -3,6 +3,7 @@ import {
   LayoutDashboardIcon,
   FileTextIcon,
   LibraryIcon,
+  PlusIcon,
 } from "lucide-react";
 
 export interface CommandItem {
@@ -49,6 +50,34 @@ export function createNavigationCommands(router: {
           icon: LibraryIcon,
           keywords: ["library", "reading"],
           onSelect: () => router.push("/books"),
+        },
+      ],
+    },
+  ];
+}
+
+export function createActionCommands(router: {
+  push: (path: string) => void;
+}): CommandGroup[] {
+  return [
+    {
+      heading: "Add",
+      items: [
+        {
+          id: "add-article",
+          label: "Add Article",
+          description: "Save a new article",
+          icon: PlusIcon,
+          keywords: ["new", "create", "save", "url"],
+          onSelect: () => router.push("/articles?action=add"),
+        },
+        {
+          id: "add-book",
+          label: "Add Book",
+          description: "Add a new book to your library",
+          icon: PlusIcon,
+          keywords: ["new", "create", "library"],
+          onSelect: () => router.push("/books?action=add"),
         },
       ],
     },

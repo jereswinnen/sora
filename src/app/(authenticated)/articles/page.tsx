@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useAction } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "../../../../convex/_generated/api";
@@ -49,6 +49,7 @@ import {
 
 export default function ArticlesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setHeaderAction } = useHeaderAction();
 
   const [url, setUrl] = useState("");
@@ -94,6 +95,16 @@ export default function ArticlesPage() {
     });
     return () => setHeaderAction(null);
   }, [setHeaderAction]);
+
+  // Check for query params to trigger actions (e.g., from command palette)
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "add") {
+      setAddArticleDialogOpen(true);
+      // Clean up URL without triggering a page reload
+      window.history.replaceState({}, "", "/articles");
+    }
+  }, [searchParams]);
 
   // Keep updateArticle for bulk operations
   const updateArticle = useMutation(api.articles.updateArticle);
