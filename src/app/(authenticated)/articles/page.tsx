@@ -94,6 +94,7 @@ export default function ArticlesPage() {
     setHeaderAction({
       label: "Add Article",
       onClick: () => setAddArticleDialogOpen(true),
+      shortcut: "C",
     });
     return () => setHeaderAction(null);
   }, [setHeaderAction]);

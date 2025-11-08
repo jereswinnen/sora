@@ -8,10 +8,14 @@ import {
 import { AppSidebar } from "@/components/app-sidebar";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { HeaderProvider, useHeaderAction } from "@/components/layout-header-context";
+import {
+  HeaderProvider,
+  useHeaderAction,
+} from "@/components/layout-header-context";
 import { ArrowLeftIcon } from "lucide-react";
 import { CommandPalette } from "@/components/command-palette";
 import { useKeyboardShortcut, singleKey } from "@/hooks/use-keyboard-shortcut";
+import { Kbd } from "@/components/ui/kbd";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,16 +28,18 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   useKeyboardShortcut(singleKey("3"), () => router.push("/books"));
 
   // Check if we're on an article detail page
-  const isArticleDetailPage = pathname?.startsWith("/articles/") && pathname !== "/articles";
+  const isArticleDetailPage =
+    pathname?.startsWith("/articles/") && pathname !== "/articles";
 
   // Get page title based on current path
-  const pageTitle = pathname === "/dashboard"
-    ? "Dashboard"
-    : pathname === "/articles"
-    ? "Articles"
-    : pathname === "/books"
-    ? "Books"
-    : "Sora";
+  const pageTitle =
+    pathname === "/dashboard"
+      ? "Dashboard"
+      : pathname === "/articles"
+        ? "Articles"
+        : pathname === "/books"
+          ? "Books"
+          : "Sora";
 
   return (
     <SidebarProvider>
@@ -64,6 +70,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 ) : (
                   <Button onClick={headerAction.onClick}>
                     {headerAction.label}
+                    {headerAction.shortcut && (
+                      <Kbd>{headerAction.shortcut}</Kbd>
+                    )}
                   </Button>
                 )}
               </>

@@ -164,6 +164,7 @@ export default function BooksPage() {
         resetForm();
         setAddBookDialogOpen(true);
       },
+      shortcut: "C",
     });
     return () => setHeaderAction(null);
   }, [setHeaderAction]);

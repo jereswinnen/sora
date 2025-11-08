@@ -6,6 +6,7 @@ type HeaderAction = {
   label?: string;
   onClick?: () => void;
   component?: React.ReactNode;
+  shortcut?: string; // Keyboard shortcut to display (e.g., "C", "⌘S")
 } | null;
 
 type HeaderContextType = {
