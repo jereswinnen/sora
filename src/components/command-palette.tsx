@@ -10,6 +10,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import { Kbd } from "@/components/ui/kbd";
 import {
@@ -63,7 +64,9 @@ export function CommandPalette() {
                   >
                     {Icon && <Icon />}
                     <span>{item.label}</span>
-                    {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                    {item.shortcut && (
+                      <CommandShortcut>{item.shortcut}</CommandShortcut>
+                    )}
                   </CommandItem>
                 );
               })}

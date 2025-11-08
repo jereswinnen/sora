@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { HeaderProvider, useHeaderAction } from "@/components/layout-header-context";
 import { ArrowLeftIcon } from "lucide-react";
 import { CommandPalette } from "@/components/command-palette";
-import { useKeyboardShortcut, metaKey } from "@/hooks/use-keyboard-shortcut";
+import { useKeyboardShortcut, singleKey } from "@/hooks/use-keyboard-shortcut";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,9 +19,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { headerAction } = useHeaderAction();
 
   // Global navigation shortcuts
-  useKeyboardShortcut(metaKey("1"), () => router.push("/dashboard"));
-  useKeyboardShortcut(metaKey("2"), () => router.push("/articles"));
-  useKeyboardShortcut(metaKey("3"), () => router.push("/books"));
+  useKeyboardShortcut(singleKey("1"), () => router.push("/dashboard"));
+  useKeyboardShortcut(singleKey("2"), () => router.push("/articles"));
+  useKeyboardShortcut(singleKey("3"), () => router.push("/books"));
 
   // Check if we're on an article detail page
   const isArticleDetailPage = pathname?.startsWith("/articles/") && pathname !== "/articles";
