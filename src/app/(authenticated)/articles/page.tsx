@@ -47,6 +47,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Kbd } from "@/components/ui/kbd";
 
 export default function ArticlesPage() {
   const router = useRouter();
@@ -205,7 +206,7 @@ export default function ArticlesPage() {
     await handleAddTagsAction(
       selectedArticleId,
       tags,
-      selectedArticle?.tags || []
+      selectedArticle?.tags || [],
     );
   };
 
@@ -255,11 +256,14 @@ export default function ArticlesPage() {
             </EmptyMedia>
             <EmptyTitle>No Articles Yet</EmptyTitle>
             <EmptyDescription>
-              You haven&apos;t saved any articles yet. Start by adding your first article.
+              You haven&apos;t saved any articles yet. Start by adding your
+              first article.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button onClick={() => setAddArticleDialogOpen(true)}>Add Article</Button>
+            <Button onClick={() => setAddArticleDialogOpen(true)}>
+              Add Article
+            </Button>
           </EmptyContent>
         </Empty>
       ) : (
@@ -407,7 +411,7 @@ export default function ArticlesPage() {
                 variant="outline"
                 onClick={() => setAddArticleDialogOpen(false)}
               >
-                Cancel
+                Cancel <Kbd>Esc</Kbd>
               </Button>
               <Button type="submit" disabled={loading || !url}>
                 {loading ? (
@@ -416,7 +420,9 @@ export default function ArticlesPage() {
                     Saving...
                   </>
                 ) : (
-                  "Save Article"
+                  <>
+                    Add Article <Kbd>⏎</Kbd>
+                  </>
                 )}
               </Button>
             </DialogFooter>

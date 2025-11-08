@@ -45,7 +45,12 @@ import { DataTable } from "@/components/ui/data-table";
 import { createColumns, Book } from "./columns";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
 import { TagCombobox } from "@/components/ui/tag-combobox";
-import { BOOK_STATUSES, BOOK_STATUS_CONFIG, OpenLibraryBook, BookStatus } from "./types";
+import {
+  BOOK_STATUSES,
+  BOOK_STATUS_CONFIG,
+  OpenLibraryBook,
+  BookStatus,
+} from "./types";
 import {
   Empty,
   EmptyContent,
@@ -61,6 +66,7 @@ import {
   FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
+import { Kbd } from "@/components/ui/kbd";
 
 function StatusOption({ status }: { status: BookStatus }) {
   const config = BOOK_STATUS_CONFIG[status];
@@ -571,7 +577,12 @@ export default function BooksPage() {
 
                     <Field>
                       <FieldLabel htmlFor="book-status">Status</FieldLabel>
-                      <Select value={status} onValueChange={(value) => setStatus(value as BookStatus)}>
+                      <Select
+                        value={status}
+                        onValueChange={(value) =>
+                          setStatus(value as BookStatus)
+                        }
+                      >
                         <SelectTrigger id="book-status">
                           <SelectValue />
                         </SelectTrigger>
@@ -720,7 +731,10 @@ export default function BooksPage() {
 
                   <Field>
                     <FieldLabel htmlFor="edit-book-status">Status</FieldLabel>
-                    <Select value={status} onValueChange={(value) => setStatus(value as BookStatus)}>
+                    <Select
+                      value={status}
+                      onValueChange={(value) => setStatus(value as BookStatus)}
+                    >
                       <SelectTrigger id="edit-book-status">
                         <SelectValue />
                       </SelectTrigger>
@@ -769,7 +783,7 @@ export default function BooksPage() {
                   variant="outline"
                   onClick={() => setEditBookDialogOpen(false)}
                 >
-                  Cancel
+                  Cancel <Kbd>Esc</Kbd>
                 </Button>
                 <Button type="submit" disabled={loading || !title}>
                   {loading ? (
@@ -778,7 +792,9 @@ export default function BooksPage() {
                       Saving...
                     </>
                   ) : (
-                    "Update Book"
+                    <>
+                      Save Changes <Kbd>⏎</Kbd>
+                    </>
                   )}
                 </Button>
               </DialogFooter>
