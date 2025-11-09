@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as books from "../books.js";
 import type * as devTools from "../devTools.js";
 import type * as helpers from "../helpers.js";
+import type * as highlights from "../highlights.js";
 import type * as http from "../http.js";
 import type * as parser from "../parser.js";
 import type * as tags from "../tags.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   books: typeof books;
   devTools: typeof devTools;
   helpers: typeof helpers;
+  highlights: typeof highlights;
   http: typeof http;
   parser: typeof parser;
   tags: typeof tags;
