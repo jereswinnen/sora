@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useAction } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "../../../../convex/_generated/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
@@ -49,9 +49,26 @@ import {
 } from "@/components/ui/empty";
 import { Kbd } from "@/components/ui/kbd";
 
-export default function ArticlesPage() {
-  const router = useRouter();
+// Separate component that uses useSearchParams
+function SearchParamsHandler({
+  onActionTriggered
+}: {
+  onActionTriggered: (action: string) => void
+}) {
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action) {
+      onActionTriggered(action);
+    }
+  }, [searchParams, onActionTriggered]);
+
+  return null;
+}
+
+function ArticlesPageContent() {
+  const router = useRouter();
   const { setHeaderAction } = useHeaderAction();
 
   const [url, setUrl] = useState("");
@@ -102,15 +119,14 @@ export default function ArticlesPage() {
   // Keyboard shortcut: C to add article
   useKeyboardShortcut(singleKey("c"), () => setAddArticleDialogOpen(true));
 
-  // Check for query params to trigger actions (e.g., from command palette)
-  useEffect(() => {
-    const action = searchParams.get("action");
+  // Handler for search params actions
+  const handleActionTriggered = (action: string) => {
     if (action === "add") {
       setAddArticleDialogOpen(true);
       // Clean up URL without triggering a page reload
       window.history.replaceState({}, "", "/articles");
     }
-  }, [searchParams]);
+  };
 
   // Keep updateArticle for bulk operations
   const updateArticle = useMutation(api.articles.updateArticle);
@@ -247,9 +263,13 @@ export default function ArticlesPage() {
   });
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      {/* Articles DataTable */}
-      {articles && articles.length === 0 ? (
+    <>
+      <Suspense fallback={null}>
+        <SearchParamsHandler onActionTriggered={handleActionTriggered} />
+      </Suspense>
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        {/* Articles DataTable */}
+        {articles && articles.length === 0 ? (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -430,6 +450,12 @@ export default function ArticlesPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   );
+}
+
+// Export the wrapped version
+export default function ArticlesPage() {
+  return <ArticlesPageContent />;
 }

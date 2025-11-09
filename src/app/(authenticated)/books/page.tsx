@@ -3,7 +3,7 @@
 import { useMutation, useAction } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "../../../../convex/_generated/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useHeaderAction } from "@/components/layout-header-context";
@@ -68,6 +68,24 @@ import {
 } from "@/components/ui/field";
 import { Kbd } from "@/components/ui/kbd";
 
+// Separate component that uses useSearchParams
+function SearchParamsHandler({
+  onActionTriggered
+}: {
+  onActionTriggered: (action: string) => void
+}) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action) {
+      onActionTriggered(action);
+    }
+  }, [searchParams, onActionTriggered]);
+
+  return null;
+}
+
 function StatusOption({ status }: { status: BookStatus }) {
   const config = BOOK_STATUS_CONFIG[status];
   const IconComponent = config.icon;
@@ -105,9 +123,8 @@ function cleanErrorMessage(err: unknown): string {
   return "An unexpected error occurred";
 }
 
-export default function BooksPage() {
+function BooksPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { setHeaderAction } = useHeaderAction();
 
   // Form state
@@ -175,16 +192,15 @@ export default function BooksPage() {
     setAddBookDialogOpen(true);
   });
 
-  // Check for query params to trigger actions (e.g., from command palette)
-  useEffect(() => {
-    const action = searchParams.get("action");
+  // Handler for search params actions
+  const handleActionTriggered = (action: string) => {
     if (action === "add") {
       resetForm();
       setAddBookDialogOpen(true);
       // Clean up URL without triggering a page reload
       window.history.replaceState({}, "", "/books");
     }
-  }, [searchParams]);
+  };
 
   // Load book data into form when editing
   useEffect(() => {
@@ -363,9 +379,13 @@ export default function BooksPage() {
   });
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      {/* Books DataTable */}
-      {books && books.length === 0 ? (
+    <>
+      <Suspense fallback={null}>
+        <SearchParamsHandler onActionTriggered={handleActionTriggered} />
+      </Suspense>
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        {/* Books DataTable */}
+        {books && books.length === 0 ? (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -805,6 +825,12 @@ export default function BooksPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   );
+}
+
+// Export the wrapped version
+export default function BooksPage() {
+  return <BooksPageContent />;
 }
