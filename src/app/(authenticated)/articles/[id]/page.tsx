@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState, useRef } from "react";
+import { use, useEffect, useState, useRef, useCallback } from "react";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
 import { TextHighlighter } from "@funktechno/texthighlighter/lib";
@@ -55,6 +55,8 @@ export default function ArticlePage({
 
   // Ref for article content to enable text highlighting
   const articleContentRef = useRef<HTMLDivElement>(null);
+  const highlighterRef = useRef<TextHighlighter | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Appearance settings state - initialized from database or defaults
   const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>({
@@ -75,6 +77,13 @@ export default function ArticlePage({
   const userPreferences = useQuery(api.userPreferences.get);
   const updatePreferences = useMutation(api.userPreferences.updateArticleAppearance);
 
+  // Highlights queries and mutations
+  const savedHighlights = useQuery(api.highlights.getHighlights, {
+    contentType: "article",
+    contentId: id,
+  });
+  const saveHighlightsMutation = useMutation(api.highlights.saveHighlights);
+
   // Load user preferences from database when available
   useEffect(() => {
     if (userPreferences) {
@@ -91,18 +100,63 @@ export default function ArticlePage({
     }
   }, [userPreferences]);
 
-  // Initialize text highlighter
+  // Debounced save function for highlights
+  const saveHighlights = useCallback(() => {
+    if (!highlighterRef.current) return;
+
+    try {
+      const serialized = highlighterRef.current.serialize();
+
+      // Only save if there's actual highlight data
+      if (serialized && serialized !== "[]") {
+        saveHighlightsMutation({
+          contentType: "article",
+          contentId: id,
+          serializedData: serialized,
+          color: "#fbbf2480",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save highlights:", error);
+    }
+  }, [id, saveHighlightsMutation]);
+
+  // Debounced save trigger
+  const triggerSave = useCallback(() => {
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new timeout to save after 1 second of inactivity
+    saveTimeoutRef.current = setTimeout(() => {
+      saveHighlights();
+    }, 1000);
+  }, [saveHighlights]);
+
+  // Initialize text highlighter and load saved highlights
   useEffect(() => {
     if (!articleContentRef.current || !article) return;
 
     const highlighter = new TextHighlighter(articleContentRef.current, {
       color: "#fbbf2480", // Amber/yellow with transparency
     });
+    highlighterRef.current = highlighter;
+
+    // Load saved highlights if they exist
+    if (savedHighlights?.serializedData) {
+      try {
+        highlighter.deserialize(savedHighlights.serializedData);
+      } catch (error) {
+        console.error("Failed to deserialize highlights:", error);
+      }
+    }
 
     const handleMouseUp = () => {
       const selection = window.getSelection();
       if (selection && selection.toString().trim().length > 0) {
         highlighter.doHighlight();
+        triggerSave(); // Save after highlighting
       }
     };
 
@@ -111,6 +165,7 @@ export default function ArticlePage({
       const target = e.target as HTMLElement;
       if (target.classList.contains("highlighted")) {
         highlighter.removeHighlights(target);
+        triggerSave(); // Save after removing highlight
       }
     };
 
@@ -121,9 +176,33 @@ export default function ArticlePage({
     return () => {
       contentElement.removeEventListener("mouseup", handleMouseUp);
       contentElement.removeEventListener("click", handleHighlightClick);
+
+      // Clear any pending save timeouts
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Save one final time before cleanup
+      if (highlighterRef.current) {
+        try {
+          const serialized = highlighterRef.current.serialize();
+          if (serialized && serialized !== "[]") {
+            saveHighlightsMutation({
+              contentType: "article",
+              contentId: id,
+              serializedData: serialized,
+              color: "#fbbf2480",
+            });
+          }
+        } catch (error) {
+          console.error("Failed to save highlights on cleanup:", error);
+        }
+      }
+
       highlighter.destroy();
+      highlighterRef.current = null;
     };
-  }, [article]);
+  }, [article, savedHighlights, id, saveHighlightsMutation, triggerSave]);
 
   const {
     handleToggleFavorite: toggleFavorite,
