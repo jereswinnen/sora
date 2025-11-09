@@ -80,15 +80,22 @@ const schema = defineSchema({
   }).index("by_user", ["userId"]),
 
   // Highlights: Text selections from articles and books
-  // Stores serialized highlight data from TextHighlighter library
+  // Each highlight is stored as a separate record
   highlights: defineTable({
     userId: v.string(), // Convex Auth user ID
     contentType: v.union(v.literal("article"), v.literal("book")),
     contentId: v.string(), // ID of the article or book
-    serializedData: v.string(), // JSON from texthighlighter.serialize()
+    // Legacy field (for old data, will be removed)
+    serializedData: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+    // Individual highlight data (from TextHighlighter serialization format)
+    wrapper: v.optional(v.string()), // HTML wrapper element
+    textContent: v.optional(v.string()), // The highlighted text
+    path: v.optional(v.string()), // DOM path to the highlight
+    offset: v.optional(v.number()), // Character offset
+    length: v.optional(v.number()), // Length of highlighted text
     color: v.string(), // Hex color with alpha (e.g., "#fbbf2480")
     createdAt: v.number(),
-    updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_content", ["contentType", "contentId"])

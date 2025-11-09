@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState, useRef, useCallback } from "react";
+import { use, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
 import { TextHighlighter } from "@funktechno/texthighlighter/lib";
@@ -90,6 +90,14 @@ export default function ArticlePage({
   });
   const saveHighlightsMutation = useMutation(api.highlights.saveHighlights);
 
+  // Memoize the article content HTML to prevent React from resetting innerHTML on re-render
+  // This is CRITICAL - without this, every render recreates the object and React resets the DOM,
+  // wiping out all highlights
+  const articleContentHTML = useMemo(() =>
+    article ? { __html: article.content } : { __html: "" },
+    [article?.content]
+  );
+
   // Load user preferences from database when available
   useEffect(() => {
     if (userPreferences) {
@@ -106,94 +114,93 @@ export default function ArticlePage({
     }
   }, [userPreferences]);
 
-  // Debounced save function for highlights
+  // Save function for highlights (with delay to ensure DOM is updated)
   const saveHighlights = useCallback(() => {
-    if (!highlighterRef.current) return;
-
-    try {
-      const serialized = highlighterRef.current.serializeHighlights();
-
-      // Only save if there's actual highlight data
-      if (serialized && serialized !== "[]") {
-        saveHighlightsMutation({
-          contentType: "article",
-          contentId: id,
-          serializedData: serialized,
-          color: "#fbbf2480",
-        });
+    // Wait for the library to finish DOM manipulation before serializing
+    setTimeout(async () => {
+      if (!highlighterRef.current) {
+        return;
       }
-    } catch (error) {
-      console.error("Failed to save highlights:", error);
-    }
+
+      try {
+        const serialized = highlighterRef.current.serializeHighlights();
+
+        // Only save if there's actual highlight data
+        if (serialized && serialized !== "[]") {
+          await saveHighlightsMutation({
+            contentType: "article",
+            contentId: id,
+            serializedData: serialized,
+            color: "#fbbf2480",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to save highlights:", error);
+      }
+    }, 500); // Increased from 200ms to 500ms for better DOM stability
   }, [id, saveHighlightsMutation]);
 
-  // Debounced save trigger
-  const triggerSave = useCallback(() => {
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+  // Track whether highlights have been loaded to prevent double-loading
+  const highlightsLoadedRef = useRef(false);
+  // Track the article ID to know when we're on a new article
+  const currentArticleIdRef = useRef<string | null>(null);
+  // Track if we've attempted initial load (to prevent re-loading on saves)
+  const initialLoadAttemptedRef = useRef(false);
 
-    // Set new timeout to save after 1 second of inactivity
-    saveTimeoutRef.current = setTimeout(() => {
-      saveHighlights();
-    }, 1000);
+  // Use ref to store latest save function to avoid recreating highlighter
+  const saveHighlightsRef = useRef(saveHighlights);
+  useEffect(() => {
+    saveHighlightsRef.current = saveHighlights;
   }, [saveHighlights]);
 
-  // Initialize text highlighter and load saved highlights
+  // Store mutation in ref to prevent highlighter recreation
+  const saveHighlightsMutationRef = useRef(saveHighlightsMutation);
+  useEffect(() => {
+    saveHighlightsMutationRef.current = saveHighlightsMutation;
+  }, [saveHighlightsMutation]);
+
+  // Initialize text highlighter (only when article changes)
   useEffect(() => {
     if (!articleContentRef.current || !article) return;
 
+    // ONLY create highlighter if we're on a new article
+    if (currentArticleIdRef.current === id && highlighterRef.current) {
+      // Same article, highlighter already exists - do nothing
+      return;
+    }
+
+    // New article - reset flags and create new highlighter
+    highlightsLoadedRef.current = false;
+    initialLoadAttemptedRef.current = false;
+    currentArticleIdRef.current = id;
+
     const highlighter = new TextHighlighter(articleContentRef.current, {
       color: "#fbbf2480", // Amber/yellow with transparency
+      onAfterHighlight: () => {
+        // Called by the library after highlighting occurs
+        saveHighlightsRef.current();
+        return true;
+      },
+      onRemoveHighlight: () => {
+        // Called by the library before removing a highlight
+        saveHighlightsRef.current();
+        return true;
+      },
     });
     highlighterRef.current = highlighter;
 
-    // Load saved highlights if they exist
-    if (savedHighlights?.serializedData) {
-      try {
-        highlighter.deserializeHighlights(savedHighlights.serializedData);
-      } catch (error) {
-        console.error("Failed to deserialize highlights:", error);
-      }
-    }
-
-    const handleMouseUp = () => {
-      const selection = window.getSelection();
-      if (selection && selection.toString().trim().length > 0) {
-        highlighter.doHighlight();
-        triggerSave(); // Save after highlighting
-      }
-    };
-
-    // Handle click on highlighted text to remove it
-    const handleHighlightClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains("highlighted")) {
-        highlighter.removeHighlights(target);
-        triggerSave(); // Save after removing highlight
-      }
-    };
-
-    const contentElement = articleContentRef.current;
-    contentElement.addEventListener("mouseup", handleMouseUp);
-    contentElement.addEventListener("click", handleHighlightClick);
-
     return () => {
-      contentElement.removeEventListener("mouseup", handleMouseUp);
-      contentElement.removeEventListener("click", handleHighlightClick);
-
       // Clear any pending save timeouts
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
 
-      // Save one final time before cleanup
+      // Save one final time before cleanup using ref
       if (highlighterRef.current) {
         try {
           const serialized = highlighterRef.current.serializeHighlights();
           if (serialized && serialized !== "[]") {
-            saveHighlightsMutation({
+            saveHighlightsMutationRef.current({
               contentType: "article",
               contentId: id,
               serializedData: serialized,
@@ -208,7 +215,45 @@ export default function ArticlePage({
       highlighter.destroy();
       highlighterRef.current = null;
     };
-  }, [article, savedHighlights, id, saveHighlightsMutation, triggerSave]);
+    // ONLY depends on article and id - nothing else
+    // This prevents recreation when mutations/queries update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [article, id]);
+
+  // Load saved highlights ONLY ONCE when the article first loads
+  // This effect runs only once per article, never re-runs
+  useEffect(() => {
+    if (!highlighterRef.current || !article) return;
+
+    // If we've already attempted to load for this article, never try again
+    if (initialLoadAttemptedRef.current) {
+      return;
+    }
+
+    // Mark that we're attempting the initial load IMMEDIATELY
+    initialLoadAttemptedRef.current = true;
+
+    // Wait for DOM to be ready and for savedHighlights query to load
+    const timeoutId = setTimeout(() => {
+      if (!highlighterRef.current) return;
+
+      // Access savedHighlights directly (it's captured in closure from component render)
+      if (savedHighlights?.serializedData) {
+        try {
+          highlighterRef.current.deserializeHighlights(savedHighlights.serializedData);
+          highlightsLoadedRef.current = true;
+        } catch (error) {
+          console.error("Failed to load highlights:", error);
+        }
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+    // CRITICAL: Only depends on article and id
+    // savedHighlights is accessed from closure but NOT in dependency array
+    // This prevents re-running when savedHighlights updates after saves
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [article, id]);
 
   const {
     handleToggleFavorite: toggleFavorite,
@@ -436,9 +481,11 @@ export default function ArticlePage({
         {/* Article Body */}
         <div className="prose prose-lg max-w-none">
           <div
+            key={article._id}
             ref={articleContentRef}
-            dangerouslySetInnerHTML={{ __html: article.content }}
+            dangerouslySetInnerHTML={articleContentHTML}
             className={`article-body ${appearanceSettings.justifyText ? "text-justify" : ""}`}
+            suppressHydrationWarning
           />
         </div>
       </article>

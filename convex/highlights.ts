@@ -2,16 +2,14 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 /**
- * Save or update highlights for a piece of content (article or book)
- *
- * If highlights already exist for this user+content, updates them.
- * Otherwise, creates a new highlights record.
+ * Save highlights for a piece of content (article or book)
+ * Replaces all existing highlights with the new set
  */
 export const saveHighlights = mutation({
   args: {
     contentType: v.union(v.literal("article"), v.literal("book")),
     contentId: v.string(),
-    serializedData: v.string(),
+    serializedData: v.string(), // JSON array from TextHighlighter
     color: v.string(),
   },
   handler: async (ctx, args) => {
@@ -22,7 +20,10 @@ export const saveHighlights = mutation({
     }
     const userId = identity.subject;
 
-    // Check if highlights already exist for this user+content
+    // Parse the serialized data
+    const highlights = JSON.parse(args.serializedData);
+
+    // Delete all existing highlights for this content
     const existing = await ctx.db
       .query("highlights")
       .withIndex("by_user_and_content", (q) =>
@@ -31,38 +32,40 @@ export const saveHighlights = mutation({
           .eq("contentType", args.contentType)
           .eq("contentId", args.contentId)
       )
-      .first();
+      .collect();
 
+    for (const h of existing) {
+      await ctx.db.delete(h._id);
+    }
+
+    // Insert each highlight as a separate record
     const now = Date.now();
+    const insertedIds = [];
 
-    if (existing) {
-      // Update existing highlights
-      await ctx.db.patch(existing._id, {
-        serializedData: args.serializedData,
-        color: args.color,
-        updatedAt: now,
-      });
-      return existing._id;
-    } else {
-      // Create new highlights record
-      const highlightId = await ctx.db.insert("highlights", {
+    for (const highlight of highlights) {
+      const id = await ctx.db.insert("highlights", {
         userId,
         contentType: args.contentType,
         contentId: args.contentId,
-        serializedData: args.serializedData,
+        wrapper: highlight.wrapper || "",
+        textContent: highlight.textContent || "",
+        path: highlight.path || "",
+        offset: highlight.offset || 0,
+        length: highlight.length || 0,
         color: args.color,
         createdAt: now,
-        updatedAt: now,
       });
-      return highlightId;
+      insertedIds.push(id);
     }
+
+    return insertedIds;
   },
 });
 
 /**
  * Get highlights for a specific piece of content
  *
- * Returns the highlights record if it exists, or null if not found.
+ * Returns serialized data compatible with TextHighlighter.deserialize()
  */
 export const getHighlights = query({
   args: {
@@ -85,14 +88,37 @@ export const getHighlights = query({
           .eq("contentType", args.contentType)
           .eq("contentId", args.contentId)
       )
-      .first();
+      .collect();
 
-    return highlights;
+    if (highlights.length === 0) {
+      return null;
+    }
+
+    // Filter out old-format records that don't have the new fields
+    const validHighlights = highlights.filter(h => h.wrapper && h.textContent && h.path !== undefined);
+
+    if (validHighlights.length === 0) {
+      return null;
+    }
+
+    // Convert database records back to TextHighlighter format
+    const serializedData = JSON.stringify(
+      validHighlights.map((h) => ({
+        wrapper: h.wrapper!,
+        textContent: h.textContent!,
+        path: h.path!,
+        offset: h.offset || 0,
+        length: h.length || 0,
+        color: h.color,
+      }))
+    );
+
+    return { serializedData };
   },
 });
 
 /**
- * Delete highlights for a specific piece of content
+ * Delete all highlights for a specific piece of content
  *
  * Used when user wants to clear all highlights from an article/book.
  */
@@ -117,10 +143,10 @@ export const deleteHighlights = mutation({
           .eq("contentType", args.contentType)
           .eq("contentId", args.contentId)
       )
-      .first();
+      .collect();
 
-    if (highlights) {
-      await ctx.db.delete(highlights._id);
+    for (const h of highlights) {
+      await ctx.db.delete(h._id);
     }
   },
 });
@@ -128,7 +154,7 @@ export const deleteHighlights = mutation({
 /**
  * List all highlights for the authenticated user
  *
- * Returns highlights across all content types, sorted by most recently updated.
+ * Returns highlights across all content types, sorted by most recently created.
  * Useful for future "All My Highlights" feature.
  */
 export const listUserHighlights = query({
@@ -146,7 +172,18 @@ export const listUserHighlights = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Sort by updatedAt descending (most recent first)
-    return highlights.sort((a, b) => b.updatedAt - a.updatedAt);
+    // Sort by createdAt descending (most recent first)
+    return highlights.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+/**
+ * DEBUG: List ALL highlights in the database (no auth check)
+ */
+export const debugListAllHighlights = query({
+  args: {},
+  handler: async (ctx) => {
+    const highlights = await ctx.db.query("highlights").collect();
+    return highlights;
   },
 });
