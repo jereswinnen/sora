@@ -1,4 +1,4 @@
-declare module "@funktechno/texthighlighter" {
+declare module "@funktechno/texthighlighter/lib" {
   export interface TextHighlighterOptions {
     color?: string;
     highlightedClass?: string;

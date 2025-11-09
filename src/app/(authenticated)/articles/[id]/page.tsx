@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState, useRef } from "react";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
-import { TextHighlighter } from "@funktechno/texthighlighter";
+import { TextHighlighter } from "@funktechno/texthighlighter/lib";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AppearancePopover, type AppearanceSettings } from "@/components/appearance-popover";
 import {
