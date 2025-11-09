@@ -79,6 +79,28 @@ const schema = defineSchema({
     articleJustifyText: v.optional(v.boolean()),
   }).index("by_user", ["userId"]),
 
+  // Highlights: Text selections from articles and books
+  // Each highlight is stored as a separate record
+  highlights: defineTable({
+    userId: v.string(), // Convex Auth user ID
+    contentType: v.union(v.literal("article"), v.literal("book")),
+    contentId: v.string(), // ID of the article or book
+    // Legacy field (for old data, will be removed)
+    serializedData: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+    // Individual highlight data (from TextHighlighter serialization format)
+    wrapper: v.optional(v.string()), // HTML wrapper element
+    textContent: v.optional(v.string()), // The highlighted text
+    path: v.optional(v.string()), // DOM path to the highlight
+    offset: v.optional(v.number()), // Character offset
+    length: v.optional(v.number()), // Length of highlighted text
+    color: v.string(), // Hex color with alpha (e.g., "#fbbf2480")
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_content", ["contentType", "contentId"])
+    .index("by_user_and_content", ["userId", "contentType", "contentId"]),
+
   // Books: Track reading progress and metadata
   books: defineTable({
     userId: v.string(), // Convex Auth user ID
