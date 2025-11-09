@@ -3,9 +3,9 @@ declare module "@funktechno/texthighlighter/lib" {
     color?: string;
     highlightedClass?: string;
     contextClass?: string;
-    onRemoveHighlight?: (highlight: HTMLElement) => void;
+    onRemoveHighlight?: (highlight: HTMLElement) => boolean;
     onBeforeHighlight?: (range: Range) => boolean;
-    onAfterHighlight?: (range: Range, highlight: HTMLElement[]) => void;
+    onAfterHighlight?: (range: Range, highlight: HTMLElement[]) => boolean;
   }
 
   export class TextHighlighter {

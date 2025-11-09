@@ -38,6 +38,11 @@ export const saveHighlights = mutation({
       await ctx.db.delete(h._id);
     }
 
+    // If no highlights, just return (all deleted above)
+    if (highlights.length === 0) {
+      return [];
+    }
+
     // Insert each highlight as a separate record
     const now = Date.now();
     const insertedIds = [];

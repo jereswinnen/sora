@@ -125,15 +125,13 @@ export default function ArticlePage({
       try {
         const serialized = highlighterRef.current.serializeHighlights();
 
-        // Only save if there's actual highlight data
-        if (serialized && serialized !== "[]") {
-          await saveHighlightsMutation({
-            contentType: "article",
-            contentId: id,
-            serializedData: serialized,
-            color: "#fbbf2480",
-          });
-        }
+        // Always save to keep database in sync (even if empty)
+        await saveHighlightsMutation({
+          contentType: "article",
+          contentId: id,
+          serializedData: serialized || "[]",
+          color: "#fbbf2480",
+        });
       } catch (error) {
         console.error("Failed to save highlights:", error);
       }
@@ -181,15 +179,38 @@ export default function ArticlePage({
         saveHighlightsRef.current();
         return true;
       },
-      onRemoveHighlight: () => {
-        // Called by the library before removing a highlight
-        saveHighlightsRef.current();
+      onRemoveHighlight: (highlight: HTMLElement) => {
+        // Called by the library before removing a highlight (when clicked)
+        // Wait for DOM to update before saving
+        setTimeout(() => {
+          saveHighlightsRef.current();
+        }, 100);
+        // Return true to allow removal
         return true;
       },
     });
     highlighterRef.current = highlighter;
 
+    // Add click handler to remove highlights when clicked
+    const handleHighlightClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Check if clicked element or any parent is a highlight
+      const highlightEl = target.closest('[data-highlighted="true"]');
+
+      if (highlightEl && highlighterRef.current) {
+        // Remove just this highlight
+        highlighterRef.current.removeHighlights(highlightEl as HTMLElement);
+      }
+    };
+
+    articleContentRef.current.addEventListener('click', handleHighlightClick);
+
     return () => {
+      // Remove click event listener
+      if (articleContentRef.current) {
+        articleContentRef.current.removeEventListener('click', handleHighlightClick);
+      }
+
       // Clear any pending save timeouts
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
