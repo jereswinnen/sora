@@ -111,7 +111,7 @@ export default function ArticlePage({
     if (!highlighterRef.current) return;
 
     try {
-      const serialized = highlighterRef.current.serialize();
+      const serialized = highlighterRef.current.serializeHighlights();
 
       // Only save if there's actual highlight data
       if (serialized && serialized !== "[]") {
@@ -152,7 +152,7 @@ export default function ArticlePage({
     // Load saved highlights if they exist
     if (savedHighlights?.serializedData) {
       try {
-        highlighter.deserialize(savedHighlights.serializedData);
+        highlighter.deserializeHighlights(savedHighlights.serializedData);
       } catch (error) {
         console.error("Failed to deserialize highlights:", error);
       }
@@ -191,7 +191,7 @@ export default function ArticlePage({
       // Save one final time before cleanup
       if (highlighterRef.current) {
         try {
-          const serialized = highlighterRef.current.serialize();
+          const serialized = highlighterRef.current.serializeHighlights();
           if (serialized && serialized !== "[]") {
             saveHighlightsMutation({
               contentType: "article",
