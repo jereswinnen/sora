@@ -9,7 +9,10 @@ import { useHeaderAction } from "@/components/layout-header-context";
 import { useArticleActions } from "@/hooks/use-article-actions";
 import { TextHighlighter } from "@funktechno/texthighlighter/lib";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { AppearancePopover, type AppearanceSettings } from "@/components/appearance-popover";
+import {
+  AppearancePopover,
+  type AppearanceSettings,
+} from "@/components/appearance-popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,23 +62,26 @@ export default function ArticlePage({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Appearance settings state - initialized from database or defaults
-  const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>({
-    theme: "sans",
-    titleSize: 32,
-    titleLeading: 1.3,
-    titleAlignment: "left",
-    bodySize: 18,
-    bodyLeading: 1.8,
-    margins: "normal",
-    justifyText: false,
-  });
+  const [appearanceSettings, setAppearanceSettings] =
+    useState<AppearanceSettings>({
+      theme: "sans",
+      titleSize: 32,
+      titleLeading: 1.3,
+      titleAlignment: "left",
+      bodySize: 18,
+      bodyLeading: 1.8,
+      margins: "normal",
+      justifyText: false,
+    });
 
   const article = useQuery(api.articles.getArticle, {
     articleId: id as Id<"articles">,
   });
   const allTags = useQuery(api.tags.getAllTags, {});
   const userPreferences = useQuery(api.userPreferences.get);
-  const updatePreferences = useMutation(api.userPreferences.updateArticleAppearance);
+  const updatePreferences = useMutation(
+    api.userPreferences.updateArticleAppearance,
+  );
 
   // Highlights queries and mutations
   const savedHighlights = useQuery(api.highlights.getHighlights, {
@@ -380,8 +386,8 @@ export default function ArticlePage({
     appearanceSettings.margins === "narrow"
       ? "max-w-3xl"
       : appearanceSettings.margins === "wide"
-      ? "max-w-5xl"
-      : "max-w-4xl";
+        ? "max-w-5xl"
+        : "max-w-4xl";
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
