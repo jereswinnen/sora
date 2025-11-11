@@ -118,6 +118,16 @@ const schema = defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_user_added", ["userId", "addedAt"]),
+
+  // Feed Subscriptions: RSS/Atom feeds the user follows
+  feedSubscriptions: defineTable({
+    userId: v.string(), // Auth0 user ID
+    feedUrl: v.string(), // RSS/Atom feed URL
+    feedTitle: v.string(), // Display name (e.g., "The New York Times")
+    siteUrl: v.optional(v.string()), // Homepage URL
+    lastFetchedAt: v.optional(v.number()), // Last successful fetch
+    subscribedAt: v.number(), // When user subscribed
+  }).index("by_user", ["userId"]),
 });
 
 export default schema;

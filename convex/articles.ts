@@ -1,6 +1,6 @@
-import { action, mutation, query } from "./_generated/server";
+import { action, mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { parseArticle } from "./parser";
 import { Id } from "./_generated/dataModel";
 
@@ -409,5 +409,110 @@ export const updateArticle = mutation({
     await ctx.db.patch(args.articleId, updates);
 
     return { success: true };
+  },
+});
+
+/**
+ * Internal action to save an article for a specific user
+ * Used by the RSS feed fetcher to automatically save articles
+ */
+export const saveArticleForUserInternal = internalAction({
+  args: {
+    userId: v.string(),
+    url: v.string(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`[Feed] Parsing article: ${args.url}`);
+
+    // Parse the article
+    const parsed = await parseArticle(args.url);
+
+    const authorInfo = parsed.author ? ` by ${parsed.author}` : "";
+    console.log(`[Feed] Parsed successfully: "${parsed.title}"${authorInfo}`);
+
+    // Save to database via internal mutation
+    const articleId: Id<"articles"> = await ctx.runMutation(
+      internal.articles.saveArticleToDBInternal,
+      {
+        userId: args.userId,
+        url: args.url,
+        title: parsed.title,
+        content: parsed.content,
+        excerpt: parsed.excerpt,
+        imageUrl: parsed.imageUrl,
+        author: parsed.author,
+        publishedAt: parsed.publishedAt,
+        readingTimeMinutes: parsed.readingTimeMinutes,
+        tags: [], // No tags for auto-saved articles from feeds
+      }
+    );
+
+    console.log(`[Feed] Saved article with ID: ${articleId}`);
+
+    return { success: true, articleId };
+  },
+});
+
+/**
+ * Internal mutation to save article to database for a specific user
+ * Called by saveArticleForUserInternal action
+ * Does not use authentication context - userId is passed explicitly
+ */
+export const saveArticleToDBInternal = internalMutation({
+  args: {
+    userId: v.string(),
+    url: v.string(),
+    title: v.string(),
+    content: v.string(),
+    excerpt: v.string(),
+    imageUrl: v.optional(v.string()),
+    author: v.optional(v.string()),
+    publishedAt: v.optional(v.number()),
+    readingTimeMinutes: v.number(),
+    tags: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if article already exists for this user
+    const existing = await ctx.db
+      .query("articles")
+      .filter((q) => q.and(q.eq(q.field("userId"), args.userId), q.eq(q.field("url"), args.url)))
+      .first();
+
+    if (existing) {
+      // Article already exists, don't throw error, just return the existing ID
+      return existing._id;
+    }
+
+    // Normalize tags (if any)
+    const normalizedTags: string[] = [];
+    for (const tag of args.tags) {
+      if (tag.trim()) {
+        // Note: We can't call normalizeAndCreateTag here because it requires auth context
+        // For feed articles, we just use tags as-is without normalization
+        normalizedTags.push(tag.trim());
+      }
+    }
+
+    // Remove duplicates
+    const uniqueTags = Array.from(
+      new Map(normalizedTags.map((tag) => [tag.toLowerCase(), tag])).values()
+    );
+
+    // Insert article
+    const articleId = await ctx.db.insert("articles", {
+      userId: args.userId,
+      url: args.url,
+      title: args.title,
+      content: args.content,
+      excerpt: args.excerpt,
+      imageUrl: args.imageUrl,
+      author: args.author,
+      publishedAt: args.publishedAt,
+      readingTimeMinutes: args.readingTimeMinutes,
+      savedAt: Date.now(),
+      tags: uniqueTags,
+    });
+
+    return articleId;
   },
 });

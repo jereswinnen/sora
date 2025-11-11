@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
@@ -41,8 +41,10 @@ import {
   Trash2Icon,
   CompassIcon,
   ClipboardCopyIcon,
+  RssIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function ArticlePage({
   params,
@@ -55,6 +57,7 @@ export default function ArticlePage({
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   // Ref for article content to enable text highlighting
   const articleContentRef = useRef<HTMLDivElement>(null);
@@ -89,6 +92,9 @@ export default function ArticlePage({
     contentId: id,
   });
   const saveHighlightsMutation = useMutation(api.highlights.saveHighlights);
+
+  // Feed subscription action
+  const discoverAndSubscribe = useAction(api.feeds.discoverAndSubscribeFeed);
 
   // Memoize the article content HTML to prevent React from resetting innerHTML on re-render
   // This is CRITICAL - without this, every render recreates the object and React resets the DOM,
@@ -360,6 +366,16 @@ export default function ArticlePage({
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={handleFollowAuthor}
+                  disabled={isFollowing}
+                >
+                  <RssIcon />
+                  {isFollowing ? "Discovering feed..." : "Follow Author"}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
                 <DropdownMenuItem onClick={() => setTagsDialogOpen(true)}>
                   <TagIcon />
                   {hasTags ? "Edit Tags" : "Add Tags"}
@@ -407,6 +423,21 @@ export default function ArticlePage({
 
   const handleRemoveTag = async (tag: string) => {
     await removeTagAction(id as Id<"articles">, tag);
+  };
+
+  const handleFollowAuthor = async () => {
+    if (!article?.url) return;
+
+    setIsFollowing(true);
+    try {
+      const result = await discoverAndSubscribe({ articleUrl: article.url });
+      toast.success(`Now following: ${result.feedTitle}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to find RSS feed";
+      toast.error(message);
+    } finally {
+      setIsFollowing(false);
+    }
   };
 
   // Save appearance settings to database

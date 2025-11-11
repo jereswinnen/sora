@@ -7,6 +7,7 @@ import {
   LibraryIcon,
   FileTextIcon,
   LayoutDashboardIcon,
+  RssIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth0 } from "@auth0/auth0-react";
@@ -46,6 +47,11 @@ const items = [
     title: "Books",
     url: "/books",
     icon: LibraryIcon,
+  },
+  {
+    title: "Feeds",
+    url: "/feeds",
+    icon: RssIcon,
   },
 ];
 
