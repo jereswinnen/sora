@@ -488,8 +488,7 @@ export default function ArticlePage({
         {/* Metadata */}
         <div className={cn(
           "flex flex-wrap gap-4 text-sm text-muted-foreground mb-8 pb-8 border-b",
-          appearanceSettings.titleAlignment === "center" && "justify-center",
-          appearanceSettings.titleAlignment === "right" && "justify-end"
+          appearanceSettings.titleAlignment === "center" && "justify-center"
         )}>
           {article.author && <span>By {article.author}</span>}
           {article.publishedAt && (
