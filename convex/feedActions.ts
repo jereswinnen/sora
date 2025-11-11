@@ -84,15 +84,16 @@ export const discoverAndSubscribeFeed = action({
     const feedXml = await feedResponse.text();
     const parsedFeed = await parser.parseString(feedXml);
 
-    // 6. Create subscription
+    // 6. Create subscription with current timestamp
+    // This marks the "start following" point - only articles published after this will be fetched
     await ctx.runMutation(internal.feeds.createSubscription, {
       feedUrl,
       feedTitle: parsedFeed.title || feedTitle || "RSS Feed",
       siteUrl: parsedFeed.link || new URL(args.articleUrl).origin,
     });
 
-    // 7. Trigger immediate fetch
-    await ctx.scheduler.runAfter(0, internal.feedActions.fetchAllFeeds);
+    // 7. Don't trigger immediate fetch - let the hourly cron handle it
+    // This ensures we only get NEW articles published after subscribing
 
     return {
       success: true,
@@ -119,6 +120,7 @@ export const fetchAllFeeds = internalAction({
           subscriptionId: sub._id,
           feedUrl: sub.feedUrl,
           userId: sub.userId,
+          subscribedAt: sub.subscribedAt,
         });
       } catch (error) {
         console.error(`Error fetching feed ${sub.feedUrl}:`, error);
@@ -132,12 +134,14 @@ export const fetchAllFeeds = internalAction({
 
 /**
  * Action: Fetch a single feed and save new articles
+ * Only saves articles published after the subscription date
  */
 export const fetchSingleFeed = internalAction({
   args: {
     subscriptionId: v.id("feedSubscriptions"),
     feedUrl: v.string(),
     userId: v.string(),
+    subscribedAt: v.number(),
   },
   handler: async (ctx, args) => {
     // 1. Fetch RSS feed
@@ -160,9 +164,21 @@ export const fetchSingleFeed = internalAction({
     // 3. Process each article (limit to 20 most recent)
     const items = feed.items.slice(0, 20);
     let savedCount = 0;
+    let skippedOld = 0;
 
     for (const item of items) {
       if (!item.link) continue;
+
+      // Skip articles published before subscription date
+      // RSS feed items have pubDate or isoDate
+      const pubDate = item.pubDate || item.isoDate;
+      if (pubDate) {
+        const publishedTime = new Date(pubDate).getTime();
+        if (publishedTime < args.subscribedAt) {
+          skippedOld++;
+          continue; // Skip old articles
+        }
+      }
 
       // Check if article already exists
       const existing = await ctx.runQuery(internal.feeds.checkArticleExists, {
@@ -191,6 +207,6 @@ export const fetchSingleFeed = internalAction({
       subscriptionId: args.subscriptionId,
     });
 
-    console.log(`Feed ${args.feedUrl}: saved ${savedCount} new articles`);
+    console.log(`Feed ${args.feedUrl}: saved ${savedCount} new articles (skipped ${skippedOld} older than subscription date)`);
   },
 });
