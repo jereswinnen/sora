@@ -7,7 +7,7 @@ const crons = cronJobs();
 crons.hourly(
   "fetch-feeds",
   { minuteUTC: 0 }, // Run at the top of every hour (XX:00)
-  internal.feeds.fetchAllFeeds
+  internal.feedActions.fetchAllFeeds
 );
 
 export default crons;

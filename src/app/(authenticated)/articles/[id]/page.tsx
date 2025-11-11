@@ -94,7 +94,7 @@ export default function ArticlePage({
   const saveHighlightsMutation = useMutation(api.highlights.saveHighlights);
 
   // Feed subscription action
-  const discoverAndSubscribe = useAction(api.feeds.discoverAndSubscribeFeed);
+  const discoverAndSubscribe = useAction(api.feedActions.discoverAndSubscribeFeed);
 
   // Memoize the article content HTML to prevent React from resetting innerHTML on re-render
   // This is CRITICAL - without this, every render recreates the object and React resets the DOM,

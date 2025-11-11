@@ -11,7 +11,10 @@
 import type * as articles from "../articles.js";
 import type * as auth from "../auth.js";
 import type * as books from "../books.js";
+import type * as crons from "../crons.js";
 import type * as devTools from "../devTools.js";
+import type * as feedActions from "../feedActions.js";
+import type * as feeds from "../feeds.js";
 import type * as helpers from "../helpers.js";
 import type * as highlights from "../highlights.js";
 import type * as http from "../http.js";
@@ -39,7 +42,10 @@ declare const fullApi: ApiFromModules<{
   articles: typeof articles;
   auth: typeof auth;
   books: typeof books;
+  crons: typeof crons;
   devTools: typeof devTools;
+  feedActions: typeof feedActions;
+  feeds: typeof feeds;
   helpers: typeof helpers;
   highlights: typeof highlights;
   http: typeof http;
