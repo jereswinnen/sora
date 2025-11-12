@@ -26,6 +26,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   useKeyboardShortcut(singleKey("1"), () => router.push("/dashboard"));
   useKeyboardShortcut(singleKey("2"), () => router.push("/articles"));
   useKeyboardShortcut(singleKey("3"), () => router.push("/books"));
+  useKeyboardShortcut(singleKey("4"), () => router.push("/feeds"));
 
   // Check if we're on an article detail page
   const isArticleDetailPage =
@@ -39,7 +40,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         ? "Articles"
         : pathname === "/books"
           ? "Books"
-          : "Sora";
+          : pathname === "/feeds"
+            ? "Feeds"
+            : "Sora";
 
   return (
     <SidebarProvider>
