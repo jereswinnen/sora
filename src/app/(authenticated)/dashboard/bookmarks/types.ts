@@ -11,4 +11,5 @@ export type Bookmark = Doc<"bookmarks">;
 export interface BookmarkMetadata {
   title: string;
   faviconUrl?: string;
+  normalizedUrl: string;
 }

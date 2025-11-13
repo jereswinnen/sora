@@ -9,6 +9,22 @@ import * as cheerio from "cheerio";
 export interface ParsedBookmarkMetadata {
   title: string;
   faviconUrl?: string;
+  normalizedUrl: string;
+}
+
+/**
+ * Normalize URL by adding protocol if missing
+ */
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim();
+
+  // If URL already has a protocol, return as-is
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  // Add https:// prefix
+  return `https://${trimmed}`;
 }
 
 /**
@@ -27,11 +43,14 @@ export const fetchBookmarkMetadata = action({
     }
 
     try {
+      // Normalize URL (add https:// if missing)
+      const normalizedUrl = normalizeUrl(args.url);
+
       // Validate URL format
-      const urlObj = new URL(args.url);
+      const urlObj = new URL(normalizedUrl);
 
       // Fetch HTML
-      const response = await fetch(args.url, {
+      const response = await fetch(normalizedUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; SoraBot/1.0; +https://sora.app)",
         },
@@ -53,15 +72,14 @@ export const fetchBookmarkMetadata = action({
         $("title").text() ||
         urlObj.hostname;
 
-      // Extract favicon
+      // Extract favicon - prioritize actual favicon links over og:image
       let faviconUrl: string | undefined;
 
-      // Try multiple methods to find favicon
+      // Try to find favicon link tags first (more reliable for favicons)
       const iconLink =
         $('link[rel="icon"]').attr("href") ||
         $('link[rel="shortcut icon"]').attr("href") ||
-        $('link[rel="apple-touch-icon"]').attr("href") ||
-        $('meta[property="og:image"]').attr("content");
+        $('link[rel="apple-touch-icon"]').attr("href");
 
       if (iconLink) {
         // Convert to absolute URL
@@ -82,6 +100,7 @@ export const fetchBookmarkMetadata = action({
       return {
         title: title.trim() || urlObj.hostname,
         faviconUrl,
+        normalizedUrl, // Return the normalized URL so frontend can use it
       };
     } catch (error) {
       if (error instanceof Error) {
