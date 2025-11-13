@@ -119,6 +119,19 @@ const schema = defineSchema({
     .index("by_user_status", ["userId", "status"])
     .index("by_user_added", ["userId", "addedAt"]),
 
+  // Bookmarks: Quick access links to frequently visited sites
+  bookmarks: defineTable({
+    userId: v.string(), // Auth0 user ID
+    url: v.string(),
+    title: v.string(),
+    faviconUrl: v.optional(v.string()),
+    tags: v.array(v.string()),
+    favorited: v.optional(v.boolean()),
+    addedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_added", ["userId", "addedAt"]),
+
   // Feed Subscriptions: RSS/Atom feeds the user follows
   feedSubscriptions: defineTable({
     userId: v.string(), // Auth0 user ID
