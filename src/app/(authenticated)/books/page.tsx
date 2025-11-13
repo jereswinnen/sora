@@ -48,7 +48,7 @@ import { TagCombobox } from "@/components/ui/tag-combobox";
 import {
   BOOK_STATUSES,
   BOOK_STATUS_CONFIG,
-  OpenLibraryBook,
+  BookSearchResult,
   BookStatus,
 } from "./types";
 import {
@@ -147,9 +147,9 @@ function BooksPageContent() {
   const [addBookDialogOpen, setAddBookDialogOpen] = useState(false);
   const [editBookDialogOpen, setEditBookDialogOpen] = useState(false);
 
-  // OpenLibrary search state
+  // Book search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<OpenLibraryBook[]>([]);
+  const [searchResults, setSearchResults] = useState<BookSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   // Convex hooks - using cached useQuery from convex-helpers to prevent flash when navigating between pages
@@ -162,7 +162,7 @@ function BooksPageContent() {
   const addBook = useMutation(api.books.addBook);
   const updateBook = useMutation(api.books.updateBook);
   const deleteBook = useMutation(api.books.deleteBook);
-  const searchOpenLibrary = useAction(api.books.searchOpenLibrary);
+  const searchBooks = useAction(api.books.searchBooks);
 
   // Get shared book actions
   const {
@@ -238,17 +238,17 @@ function BooksPageContent() {
 
     setSearching(true);
     try {
-      const results = await searchOpenLibrary({ query: searchQuery, limit: 5 });
+      const results = await searchBooks({ query: searchQuery, limit: 5 });
       setSearchResults(results || []);
     } catch {
-      toast.error("Failed to search OpenLibrary");
+      toast.error("Failed to search for books");
       setSearchResults([]);
     } finally {
       setSearching(false);
     }
   };
 
-  const handleSelectBook = (book: OpenLibraryBook) => {
+  const handleSelectBook = (book: BookSearchResult) => {
     setTitle(book.title || "");
     setAuthor(book.author || "");
     setCoverUrl(book.coverUrl || "");
@@ -482,12 +482,12 @@ function BooksPageContent() {
           </DialogHeader>
 
           <FieldGroup>
-            {/* OpenLibrary Search Section */}
+            {/* Book Search Section */}
             <FieldSet>
               <form onSubmit={handleSearch}>
                 <Field>
                   <FieldLabel htmlFor="search-query">
-                    Search OpenLibrary
+                    Search Books
                   </FieldLabel>
                   <div className="flex gap-2">
                     <Input
