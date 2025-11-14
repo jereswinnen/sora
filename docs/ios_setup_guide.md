@@ -1230,7 +1230,7 @@ client.subscribe(query: "books:listBooks", args: [...]) { result in ... }
 try await client.mutation("books:addBook", args: [...])
 
 // Actions (external HTTP calls)
-try await client.action("books:searchOpenLibrary", args: [...])
+try await client.action("books:searchBooks", args: [...])
 ```
 
 **Check the actual Convex Swift SDK documentation** for the exact API. You may need to adjust:
@@ -1328,7 +1328,7 @@ Auth0's `CredentialsManager` automatically handles secure storage:
 
 ### 2. Enhance Books Feature
 - Implement `BookDetailView.swift` for viewing individual books
-- Add search functionality using `searchOpenLibrary` action
+- Add search functionality using `searchBooks` action
 - Add tag management UI
 - Implement filtering and sorting
 
@@ -1383,7 +1383,7 @@ All Convex functions are in the `convex/` folder of the main project:
 - `books:deleteBook` (mutation) - Delete book
 - `books:addTag` (mutation) - Add tag to book
 - `books:removeTag` (mutation) - Remove tag from book
-- `books:searchOpenLibrary` (action) - Search for books via OpenLibrary API
+- `books:searchBooks` (action) - Search for books via iTunes Search API
 
 **Authentication**:
 - Uses Auth0 for authentication (same as web app)

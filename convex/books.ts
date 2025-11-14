@@ -382,9 +382,9 @@ export const removeTag = mutation({
 });
 
 /**
- * Search for books using the OpenLibrary API
+ * Search for books using the iTunes Search API
  */
-export const searchOpenLibrary = action({
+export const searchBooks = action({
   args: {
     query: v.string(),
     limit: v.optional(v.number()),
@@ -396,63 +396,58 @@ export const searchOpenLibrary = action({
       throw new Error("Not authenticated");
     }
 
-    const limit = args.limit || 10;
+    const limit = args.limit || 20;
     const encodedQuery = encodeURIComponent(args.query);
 
     try {
       const response = await fetch(
-        `https://openlibrary.org/search.json?q=${encodedQuery}&limit=${limit}`
+        `https://itunes.apple.com/search?term=${encodedQuery}&entity=ebook&limit=${limit}`
       );
 
       if (!response.ok) {
-        throw new Error(`OpenLibrary API error: ${response.status}`);
+        throw new Error(`iTunes API error: ${response.status}`);
       }
 
       const data = await response.json();
 
-      // Define OpenLibrary API response type
-      interface OpenLibraryDoc {
-        title?: string;
-        cover_i?: number;
-        first_publish_year?: number;
-        author_name?: string[];
-        key: string;
-        isbn?: string[];
+      // Define iTunes API response type
+      interface iTunesResult {
+        trackName?: string;
+        artistName?: string;
+        artworkUrl100?: string;
+        releaseDate?: string;
+        trackId: number;
       }
 
-      interface OpenLibraryResponse {
-        docs: OpenLibraryDoc[];
+      interface iTunesResponse {
+        results: iTunesResult[];
       }
 
-      const typedData = data as OpenLibraryResponse;
+      const typedData = data as iTunesResponse;
 
       // Transform the results into a clean format
-      return typedData.docs.map((book) => {
-        // Get cover URL from cover_i (cover ID)
-        const coverUrl = book.cover_i
-          ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+      return typedData.results.map((book) => {
+        // Upgrade artwork to 600x600 for higher resolution
+        const coverUrl = book.artworkUrl100
+          ? book.artworkUrl100.replace("100x100", "600x600")
           : undefined;
 
-        // Get first published year and convert to timestamp
-        const publishedDate = book.first_publish_year
-          ? new Date(`${book.first_publish_year}-01-01`).getTime()
+        // Parse release date to timestamp
+        const publishedDate = book.releaseDate
+          ? new Date(book.releaseDate).getTime()
           : undefined;
-
-        // Get primary author (first in the list)
-        const author = book.author_name?.[0];
 
         return {
-          title: book.title || "Untitled",
-          author,
+          title: book.trackName || "Untitled",
+          author: book.artistName,
           coverUrl,
           publishedDate,
-          key: book.key, // OpenLibrary work key
-          isbn: book.isbn?.[0], // First ISBN if available
+          trackId: book.trackId, // iTunes track ID
         };
       });
     } catch (error) {
-      console.error("OpenLibrary search error:", error);
-      throw new Error("Failed to search OpenLibrary");
+      console.error("iTunes search error:", error);
+      throw new Error("Failed to search iTunes");
     }
   },
 });

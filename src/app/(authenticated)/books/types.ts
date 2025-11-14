@@ -44,11 +44,10 @@ export const BOOK_STATUS_CONFIG: Record<
   },
 };
 
-export interface OpenLibraryBook {
+export interface BookSearchResult {
   title: string;
   author?: string;
   coverUrl?: string;
   publishedDate?: number;
-  key: string;
-  isbn?: string;
+  trackId: number;
 }
