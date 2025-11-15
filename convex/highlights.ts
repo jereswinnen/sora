@@ -192,3 +192,107 @@ export const debugListAllHighlights = query({
     return highlights;
   },
 });
+
+/**
+ * Create a single highlight (for book highlights)
+ */
+export const createHighlight = mutation({
+  args: {
+    contentType: v.union(v.literal("article"), v.literal("book")),
+    contentId: v.string(),
+    textContent: v.string(),
+    pageNumber: v.optional(v.number()),
+    color: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject;
+
+    // Validate: book highlights require page number
+    if (args.contentType === "book" && !args.pageNumber) {
+      throw new Error("Page number is required for book highlights");
+    }
+
+    // Create the highlight
+    const highlightId = await ctx.db.insert("highlights", {
+      userId,
+      contentType: args.contentType,
+      contentId: args.contentId,
+      textContent: args.textContent,
+      pageNumber: args.pageNumber,
+      color: args.color,
+      createdAt: Date.now(),
+    });
+
+    return highlightId;
+  },
+});
+
+/**
+ * Delete a single highlight by ID
+ */
+export const deleteHighlight = mutation({
+  args: {
+    highlightId: v.id("highlights"),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject;
+
+    // Get the highlight to verify ownership
+    const highlight = await ctx.db.get(args.highlightId);
+    if (!highlight) {
+      throw new Error("Highlight not found");
+    }
+
+    // Verify the highlight belongs to the user
+    if (highlight.userId !== userId) {
+      throw new Error("Not authorized to delete this highlight");
+    }
+
+    // Delete the highlight
+    await ctx.db.delete(args.highlightId);
+  },
+});
+
+/**
+ * List highlights for a book, sorted by page number
+ */
+export const listBookHighlights = query({
+  args: {
+    bookId: v.id("books"),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user ID from Auth0
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+    const userId = identity.subject;
+
+    const highlights = await ctx.db
+      .query("highlights")
+      .withIndex("by_user_and_content", (q) =>
+        q
+          .eq("userId", userId)
+          .eq("contentType", "book")
+          .eq("contentId", args.bookId)
+      )
+      .collect();
+
+    // Sort by page number (ascending), with null/undefined page numbers last
+    return highlights.sort((a, b) => {
+      const pageA = a.pageNumber ?? Number.MAX_SAFE_INTEGER;
+      const pageB = b.pageNumber ?? Number.MAX_SAFE_INTEGER;
+      return pageA - pageB;
+    });
+  },
+});

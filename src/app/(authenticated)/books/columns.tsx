@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import {
   BookCheckIcon,
   MoreHorizontal,
@@ -100,12 +101,12 @@ export const createColumns = (actions: {
             />
           )}
           <div className="flex flex-col min-w-0">
-            <button
-              onClick={() => actions.onEdit(book._id)}
+            <Link
+              href={`/books/${book._id}`}
               className="truncate font-medium text-left hover:underline cursor-pointer"
             >
               {book.title}
-            </button>
+            </Link>
             {metadata.length > 0 && (
               <div className="text-xs text-muted-foreground truncate">
                 {metadata.join(" · ")}
