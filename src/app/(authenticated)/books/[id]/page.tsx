@@ -66,6 +66,7 @@ import {
 import { toast } from "sonner";
 import { BOOK_STATUS_CONFIG, BOOK_STATUSES } from "../types";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
+import { TagCombobox } from "@/components/ui/tag-combobox";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_HIGHLIGHT_COLOR = "#fbbf2480"; // Amber color matching articles
@@ -84,10 +85,12 @@ export default function BookDetailPage({
   });
   const updateBook = useMutation(api.books.updateBook);
   const deleteBook = useMutation(api.books.deleteBook);
-  const addTag = useMutation(api.books.addTag);
-  const removeTag = useMutation(api.books.removeTag);
+  const addBookTag = useMutation(api.books.addTag);
+  const removeBookTag = useMutation(api.books.removeTag);
   const createHighlight = useMutation(api.highlights.createHighlight);
   const deleteHighlight = useMutation(api.highlights.deleteHighlight);
+  const addHighlightTag = useMutation(api.highlights.addTag);
+  const removeHighlightTag = useMutation(api.highlights.removeTag);
 
   // Local state for inline editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -99,6 +102,7 @@ export default function BookDetailPage({
   const [isAddHighlightOpen, setIsAddHighlightOpen] = useState(false);
   const [newHighlightText, setNewHighlightText] = useState("");
   const [newHighlightPage, setNewHighlightPage] = useState("");
+  const [newHighlightTags, setNewHighlightTags] = useState<string[]>([]);
 
   // State for delete confirmation
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -222,11 +226,13 @@ export default function BookDetailPage({
         textContent: newHighlightText.trim(),
         pageNumber: pageNum,
         color: DEFAULT_HIGHLIGHT_COLOR,
+        tags: newHighlightTags,
       });
       toast.success("Highlight added");
       setIsAddHighlightOpen(false);
       setNewHighlightText("");
       setNewHighlightPage("");
+      setNewHighlightTags([]);
     } catch (error) {
       toast.error("Failed to add highlight");
       console.error(error);
@@ -249,7 +255,7 @@ export default function BookDetailPage({
   const handleAddTags = async (tags: string[]) => {
     try {
       for (const tag of tags) {
-        await addTag({
+        await addBookTag({
           bookId: id,
           tag,
         });
@@ -263,7 +269,7 @@ export default function BookDetailPage({
 
   const handleRemoveTag = async (tag: string) => {
     try {
-      await removeTag({
+      await removeBookTag({
         bookId: id,
         tag,
       });
@@ -503,9 +509,16 @@ export default function BookDetailPage({
                   <CardContent className="pt-6">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Badge variant="secondary">
-                          Page {highlight.pageNumber}
-                        </Badge>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="secondary">
+                            Page {highlight.pageNumber}
+                          </Badge>
+                          {highlight.tags?.map((tag) => (
+                            <Badge key={tag} variant="outline">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -623,6 +636,15 @@ export default function BookDetailPage({
                         setIsAddHighlightOpen(false);
                       }
                     }}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="tags">Tags (Optional)</FieldLabel>
+                  <TagCombobox
+                    selectedTags={newHighlightTags}
+                    onTagsChange={setNewHighlightTags}
+                    placeholder="Add tags..."
                   />
                 </Field>
               </FieldSet>
