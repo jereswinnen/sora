@@ -4,7 +4,7 @@ import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
-import { useState } from "react";
+import { useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +40,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Trash2, Edit2, X, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Edit2,
+  X,
+  Check,
+  BookmarkPlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { BOOK_STATUS_CONFIG, BOOK_STATUSES } from "../types";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
@@ -50,12 +59,13 @@ const DEFAULT_HIGHLIGHT_COLOR = "#fbbf2480"; // Amber color matching articles
 export default function BookDetailPage({
   params,
 }: {
-  params: { id: Id<"books"> };
+  params: Promise<{ id: Id<"books"> }>;
 }) {
   const router = useRouter();
-  const book = useQuery(api.books.getBook, { bookId: params.id });
+  const { id } = use(params);
+  const book = useQuery(api.books.getBook, { bookId: id });
   const highlights = useQuery(api.highlights.listBookHighlights, {
-    bookId: params.id,
+    bookId: id,
   });
   const updateBook = useMutation(api.books.updateBook);
   const deleteBook = useMutation(api.books.deleteBook);
@@ -82,7 +92,7 @@ export default function BookDetailPage({
   if (book === undefined || highlights === undefined) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Spinner size="lg" />
+        <Spinner />
       </div>
     );
   }
@@ -107,7 +117,7 @@ export default function BookDetailPage({
 
     try {
       await updateBook({
-        bookId: params.id,
+        bookId: id,
         title: editedTitle.trim(),
       });
       setIsEditingTitle(false);
@@ -121,7 +131,7 @@ export default function BookDetailPage({
   const handleSaveAuthor = async () => {
     try {
       await updateBook({
-        bookId: params.id,
+        bookId: id,
         author: editedAuthor.trim() || undefined,
       });
       setIsEditingAuthor(false);
@@ -135,7 +145,7 @@ export default function BookDetailPage({
   const handleStatusChange = async (newStatus: string) => {
     try {
       await updateBook({
-        bookId: params.id,
+        bookId: id,
         status: newStatus,
       });
       toast.success("Status updated");
@@ -147,7 +157,7 @@ export default function BookDetailPage({
 
   const handleDeleteBook = async () => {
     try {
-      await deleteBook({ bookId: params.id });
+      await deleteBook({ bookId: id });
       toast.success("Book deleted");
       router.push("/books");
     } catch (error) {
@@ -176,7 +186,7 @@ export default function BookDetailPage({
     try {
       await createHighlight({
         contentType: "book",
-        contentId: params.id,
+        contentId: id,
         textContent: newHighlightText.trim(),
         pageNumber: pageNum,
         color: DEFAULT_HIGHLIGHT_COLOR,
@@ -254,11 +264,7 @@ export default function BookDetailPage({
                     autoFocus
                     className="text-2xl font-bold h-auto py-2"
                   />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleSaveTitle}
-                  >
+                  <Button size="icon" variant="ghost" onClick={handleSaveTitle}>
                     <Check className="h-4 w-4" />
                   </Button>
                   <Button
@@ -403,7 +409,7 @@ export default function BookDetailPage({
                 variant="destructive"
                 onClick={() => setDeleteConfirmOpen(true)}
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2Icon className="size-4" />
                 Delete Book
               </Button>
             </div>
@@ -416,10 +422,13 @@ export default function BookDetailPage({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold">Highlights</h2>
-            <Dialog open={isAddHighlightOpen} onOpenChange={setIsAddHighlightOpen}>
+            <Dialog
+              open={isAddHighlightOpen}
+              onOpenChange={setIsAddHighlightOpen}
+            >
               <DialogTrigger asChild>
                 <Button>
-                  <Plus className="mr-2 h-4 w-4" />
+                  <BookmarkPlusIcon className="size-4" />
                   Add Highlight
                 </Button>
               </DialogTrigger>
@@ -512,8 +521,8 @@ export default function BookDetailPage({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete &quot;{book.title}&quot; and all its highlights.
-              This action cannot be undone.
+              This will permanently delete &quot;{book.title}&quot; and all its
+              highlights. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -530,7 +539,7 @@ export default function BookDetailPage({
         open={manageTagsOpen}
         onOpenChange={setManageTagsOpen}
         contentType="book"
-        contentId={params.id}
+        contentId={id}
         currentTags={book.tags}
       />
     </div>
