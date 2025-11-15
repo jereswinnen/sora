@@ -4,15 +4,26 @@ import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { useHeaderAction } from "@/components/layout-header-context";
+import { useKeyboardShortcut, singleKey } from "@/hooks/use-keyboard-shortcut";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +51,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { Kbd } from "@/components/ui/kbd";
 import {
   ArrowLeft,
   Plus,
@@ -49,10 +61,12 @@ import {
   Check,
   BookmarkPlusIcon,
   Trash2Icon,
+  BookmarkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BOOK_STATUS_CONFIG, BOOK_STATUSES } from "../types";
 import { ManageTagsDialog } from "@/components/manage-tags-dialog";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_HIGHLIGHT_COLOR = "#fbbf2480"; // Amber color matching articles
 
@@ -63,12 +77,15 @@ export default function BookDetailPage({
 }) {
   const router = useRouter();
   const { id } = use(params);
+  const { setHeaderAction } = useHeaderAction();
   const book = useQuery(api.books.getBook, { bookId: id });
   const highlights = useQuery(api.highlights.listBookHighlights, {
     bookId: id,
   });
   const updateBook = useMutation(api.books.updateBook);
   const deleteBook = useMutation(api.books.deleteBook);
+  const addTag = useMutation(api.books.addTag);
+  const removeTag = useMutation(api.books.removeTag);
   const createHighlight = useMutation(api.highlights.createHighlight);
   const deleteHighlight = useMutation(api.highlights.deleteHighlight);
 
@@ -85,9 +102,24 @@ export default function BookDetailPage({
 
   // State for delete confirmation
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteHighlightId, setDeleteHighlightId] =
+    useState<Id<"highlights"> | null>(null);
 
   // State for manage tags dialog
   const [manageTagsOpen, setManageTagsOpen] = useState(false);
+
+  // Set header action for this page
+  useEffect(() => {
+    setHeaderAction({
+      label: "Add Highlight",
+      onClick: () => setIsAddHighlightOpen(true),
+      shortcut: "C",
+    });
+    return () => setHeaderAction(null);
+  }, [setHeaderAction]);
+
+  // Keyboard shortcut: C to add highlight
+  useKeyboardShortcut(singleKey("c"), () => setIsAddHighlightOpen(true));
 
   if (book === undefined || highlights === undefined) {
     return (
@@ -201,12 +233,43 @@ export default function BookDetailPage({
     }
   };
 
-  const handleDeleteHighlight = async (highlightId: Id<"highlights">) => {
+  const handleDeleteHighlight = async () => {
+    if (!deleteHighlightId) return;
+
     try {
-      await deleteHighlight({ highlightId });
+      await deleteHighlight({ highlightId: deleteHighlightId });
       toast.success("Highlight deleted");
+      setDeleteHighlightId(null);
     } catch (error) {
       toast.error("Failed to delete highlight");
+      console.error(error);
+    }
+  };
+
+  const handleAddTags = async (tags: string[]) => {
+    try {
+      for (const tag of tags) {
+        await addTag({
+          bookId: id,
+          tag,
+        });
+      }
+      toast.success(tags.length === 1 ? "Tag added" : "Tags added");
+    } catch (error) {
+      toast.error("Failed to add tags");
+      console.error(error);
+    }
+  };
+
+  const handleRemoveTag = async (tag: string) => {
+    try {
+      await removeTag({
+        bookId: id,
+        tag,
+      });
+      toast.success("Tag removed");
+    } catch (error) {
+      toast.error("Failed to remove tag");
       console.error(error);
     }
   };
@@ -420,68 +483,28 @@ export default function BookDetailPage({
 
         {/* Highlights Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Highlights</h2>
-            <Dialog
-              open={isAddHighlightOpen}
-              onOpenChange={setIsAddHighlightOpen}
-            >
-              <DialogTrigger asChild>
-                <Button>
-                  <BookmarkPlusIcon className="size-4" />
-                  Add Highlight
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add Highlight</DialogTitle>
-                  <DialogDescription>
-                    Add a highlight from your reading
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="page">Page Number</Label>
-                    <Input
-                      id="page"
-                      type="number"
-                      min="1"
-                      placeholder="42"
-                      value={newHighlightPage}
-                      onChange={(e) => setNewHighlightPage(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="text">Highlight Text</Label>
-                    <Textarea
-                      id="text"
-                      placeholder="Enter the text you highlighted..."
-                      rows={6}
-                      value={newHighlightText}
-                      onChange={(e) => setNewHighlightText(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsAddHighlightOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddHighlight}>Save Highlight</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <h2 className="text-2xl font-semibold">Highlights</h2>
 
           {/* Highlights List */}
           {highlights.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6 text-center text-muted-foreground">
-                No highlights yet. Add your first highlight from this book!
-              </CardContent>
-            </Card>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <BookmarkIcon />
+                </EmptyMedia>
+                <EmptyTitle>No Highlights Yet</EmptyTitle>
+                <EmptyDescription>
+                  You haven&apos;t added any highlights from this book yet.
+                  Start by adding your first highlight.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button onClick={() => setIsAddHighlightOpen(true)}>
+                  <BookmarkPlusIcon className="size-4" />
+                  Add Highlight <Kbd>C</Kbd>
+                </Button>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="space-y-3">
               {highlights.map((highlight) => (
@@ -495,7 +518,7 @@ export default function BookDetailPage({
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteHighlight(highlight._id)}
+                          onClick={() => setDeleteHighlightId(highlight._id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -515,7 +538,7 @@ export default function BookDetailPage({
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Book Confirmation Dialog */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -527,20 +550,122 @@ export default function BookDetailPage({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteBook}>
+            <AlertDialogAction
+              onClick={handleDeleteBook}
+              className={cn(buttonVariants({ variant: "destructive" }))}
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete Highlight Confirmation Dialog */}
+      <AlertDialog
+        open={deleteHighlightId !== null}
+        onOpenChange={(open) => !open && setDeleteHighlightId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Highlight?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this highlight. This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteHighlight}
+              className={cn(buttonVariants({ variant: "destructive" }))}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add Highlight Dialog */}
+      <Dialog open={isAddHighlightOpen} onOpenChange={setIsAddHighlightOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Highlight</DialogTitle>
+            <DialogDescription>
+              Add a highlight from your reading
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddHighlight();
+            }}
+          >
+            <FieldGroup>
+              <FieldSet>
+                <Field>
+                  <FieldLabel htmlFor="page">Page Number</FieldLabel>
+                  <Input
+                    id="page"
+                    type="number"
+                    min="1"
+                    placeholder="42"
+                    value={newHighlightPage}
+                    onChange={(e) => setNewHighlightPage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setIsAddHighlightOpen(false);
+                      }
+                    }}
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="text">Highlight Text</FieldLabel>
+                  <Textarea
+                    id="text"
+                    placeholder="Enter the text you highlighted..."
+                    rows={6}
+                    value={newHighlightText}
+                    onChange={(e) => setNewHighlightText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setIsAddHighlightOpen(false);
+                      }
+                    }}
+                  />
+                </Field>
+              </FieldSet>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAddHighlightOpen(false)}
+                >
+                  Cancel <Kbd>Esc</Kbd>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    !newHighlightText.trim() || !newHighlightPage.trim()
+                  }
+                >
+                  Save Highlight <Kbd>⏎</Kbd>
+                </Button>
+              </DialogFooter>
+            </FieldGroup>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Manage Tags Dialog */}
       <ManageTagsDialog
         open={manageTagsOpen}
         onOpenChange={setManageTagsOpen}
-        contentType="book"
-        contentId={id}
         currentTags={book.tags}
+        onAddTags={handleAddTags}
+        onRemoveTag={handleRemoveTag}
+        contentType="book"
       />
     </div>
   );
