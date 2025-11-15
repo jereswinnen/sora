@@ -27,9 +27,7 @@ auth.addHttpRoutes(http);
  * 3. Add your user ID to the USER_ID_MAP below
  */
 const USER_ID_MAP: Record<string, string> = {
-  // Replace with your actual API key and Auth0 user ID
-  "your-api-key-here": "your-auth0-user-id-here",
-  // Example: "sk_live_abc123": "auth0|690ce93f5124e5c8ba7134e3",
+  "vOvwAfadtNXVWDoBs7OGR3J6Ovcp+BY0c/LGty+k1Nw=": "auth0|690ce93f5124e5c8ba7134e3",
 };
 
 /**
