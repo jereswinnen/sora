@@ -83,6 +83,7 @@ export default function BookDetailPage({
   const highlights = useQuery(api.highlights.listBookHighlights, {
     bookId: id,
   });
+  const allTags = useQuery(api.tags.getAllTags, {});
   const updateBook = useMutation(api.books.updateBook);
   const deleteBook = useMutation(api.books.deleteBook);
   const addBookTag = useMutation(api.books.addTag);
@@ -642,6 +643,7 @@ export default function BookDetailPage({
                 <Field>
                   <FieldLabel htmlFor="tags">Tags (Optional)</FieldLabel>
                   <TagCombobox
+                    availableTags={allTags}
                     selectedTags={newHighlightTags}
                     onTagsChange={setNewHighlightTags}
                     placeholder="Add tags..."
@@ -676,6 +678,7 @@ export default function BookDetailPage({
         open={manageTagsOpen}
         onOpenChange={setManageTagsOpen}
         currentTags={book.tags}
+        availableTags={allTags}
         onAddTags={handleAddTags}
         onRemoveTag={handleRemoveTag}
         contentType="book"
