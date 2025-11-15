@@ -94,7 +94,9 @@ const schema = defineSchema({
     path: v.optional(v.string()), // DOM path to the highlight
     offset: v.optional(v.number()), // Character offset
     length: v.optional(v.number()), // Length of highlighted text
+    pageNumber: v.optional(v.number()), // Page number for book highlights
     color: v.string(), // Hex color with alpha (e.g., "#fbbf2480")
+    tags: v.optional(v.array(v.string())), // User-defined tags for organizing highlights
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
