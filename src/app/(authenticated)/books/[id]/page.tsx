@@ -283,18 +283,9 @@ export default function BookDetailPage({
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      {/* Back button */}
-      <Button
-        variant="ghost"
-        onClick={() => router.push("/books")}
-        className="mb-6"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Books
-      </Button>
-
-      {/* Book Metadata Section */}
+    <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="container mx-auto max-w-4xl">
+        {/* Book Metadata Section */}
       <div className="space-y-6">
         <div className="flex gap-6">
           {/* Cover Image */}
@@ -667,6 +658,7 @@ export default function BookDetailPage({
         onRemoveTag={handleRemoveTag}
         contentType="book"
       />
+      </div>
     </div>
   );
 }

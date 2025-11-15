@@ -32,6 +32,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isArticleDetailPage =
     pathname?.startsWith("/articles/") && pathname !== "/articles";
 
+  // Check if we're on a book detail page
+  const isBookDetailPage =
+    pathname?.startsWith("/books/") && pathname !== "/books";
+
   // Get page title based on current path
   const pageTitle =
     pathname === "/dashboard"
@@ -62,7 +66,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                   <ArrowLeftIcon />
                 </Button>
               )}
-              {!isArticleDetailPage && (
+              {isBookDetailPage && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push("/books")}
+                  aria-label="Go Back"
+                >
+                  <ArrowLeftIcon />
+                </Button>
+              )}
+              {!isArticleDetailPage && !isBookDetailPage && (
                 <h1 className="text-xl font-bold">{pageTitle}</h1>
               )}
             </div>
