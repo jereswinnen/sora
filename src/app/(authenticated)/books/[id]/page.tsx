@@ -31,7 +31,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -54,7 +53,6 @@ import { Label } from "@/components/ui/label";
 import { Kbd } from "@/components/ui/kbd";
 import {
   ArrowLeft,
-  Plus,
   Trash2,
   Edit2,
   X,
@@ -90,8 +88,6 @@ export default function BookDetailPage({
   const removeBookTag = useMutation(api.books.removeTag);
   const createHighlight = useMutation(api.highlights.createHighlight);
   const deleteHighlight = useMutation(api.highlights.deleteHighlight);
-  const addHighlightTag = useMutation(api.highlights.addTag);
-  const removeHighlightTag = useMutation(api.highlights.removeTag);
 
   // Local state for inline editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
