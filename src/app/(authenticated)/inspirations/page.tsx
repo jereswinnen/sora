@@ -53,12 +53,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldSet,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { Kbd } from "@/components/ui/kbd";
 
 // Type for inspiration with image URL
@@ -123,7 +118,7 @@ function MasonryGrid({
           onLoadMore();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (loadMoreRef.current) {
@@ -220,7 +215,7 @@ export default function InspirationsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InspirationWithUrl | null>(
-    null
+    null,
   );
 
   // Form state
@@ -231,6 +226,10 @@ export default function InspirationsPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Page-level drag state
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   // Convex hooks
   const inspirationsData = useQuery(api.inspirations.listInspirations, {
@@ -358,7 +357,7 @@ export default function InspirationsPage() {
   };
 
   const getImageDimensions = (
-    file: File
+    file: File,
   ): Promise<{ width: number; height: number }> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -498,8 +497,8 @@ export default function InspirationsPage() {
         prev.map((item) =>
           item._id === selectedItem._id
             ? { ...item, favorited: result.favorited }
-            : item
-        )
+            : item,
+        ),
       );
     } catch (err) {
       toast.error(cleanErrorMessage(err));
@@ -530,8 +529,8 @@ export default function InspirationsPage() {
       prev.map((item) =>
         item._id === selectedItem._id
           ? { ...item, tags: [...new Set([...item.tags, ...newTags])] }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
@@ -552,11 +551,95 @@ export default function InspirationsPage() {
         prev.map((item) =>
           item._id === selectedItem._id
             ? { ...item, tags: item.tags.filter((t) => t !== tag) }
-            : item
-        )
+            : item,
+        ),
       );
     } catch (err) {
       toast.error(cleanErrorMessage(err));
+    }
+  };
+
+  // Page-level drag and drop handlers for quick upload
+  const handlePageDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handlePageDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDraggingOver(false);
+    }
+  };
+
+  const handlePageDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handlePageDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDraggingOver(false);
+
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (!droppedFile) return;
+
+    // Validate file type
+    if (!droppedFile.type.startsWith("image/")) {
+      toast.error("Please drop an image file");
+      return;
+    }
+
+    // Validate file size (max 20MB)
+    if (droppedFile.size > 20 * 1024 * 1024) {
+      toast.error("File size must be less than 20MB");
+      return;
+    }
+
+    // Upload directly without opening dialog
+    setUploading(true);
+
+    try {
+      // Get image dimensions
+      const dimensions = await getImageDimensions(droppedFile);
+
+      // Step 1: Get upload URL
+      const uploadUrl = await generateUploadUrl();
+
+      // Step 2: Upload file
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": droppedFile.type },
+        body: droppedFile,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload file");
+      }
+
+      const { storageId } = await response.json();
+
+      // Step 3: Save to database (no title/description/tags - user can add later)
+      await saveInspiration({
+        storageId,
+        tags: [],
+        width: dimensions.width,
+        height: dimensions.height,
+      });
+
+      toast.success("Inspiration added!");
+
+      // Reset pagination to reload from beginning
+      setCursor(undefined);
+      setItems([]);
+    } catch (err) {
+      toast.error(cleanErrorMessage(err));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -564,7 +647,43 @@ export default function InspirationsPage() {
 
   return (
     <>
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <div
+        className="flex flex-1 flex-col gap-4 p-4 relative"
+        onDragEnter={handlePageDragEnter}
+        onDragLeave={handlePageDragLeave}
+        onDragOver={handlePageDragOver}
+        onDrop={handlePageDrop}
+      >
+        {/* Drag overlay */}
+        <div
+          className={cn(
+            "absolute inset-0 z-50 flex items-center justify-center pointer-events-none transition-all duration-400 ease-in-out",
+            isDraggingOver
+              ? "bg-background/60 backdrop-blur-[2px] opacity-100"
+              : "bg-transparent backdrop-blur-0 opacity-0",
+          )}
+        >
+          <div
+            className={cn(
+              "flex flex-col items-center gap-3 text-muted-foreground transition-all duration-400 ease-in-out",
+              isDraggingOver ? "opacity-100 scale-100" : "opacity-0 scale-95",
+            )}
+          >
+            <Upload className="size-8 animate-pulse" />
+            <p className="text-sm">Drop to upload</p>
+          </div>
+        </div>
+
+        {/* Upload in progress overlay */}
+        {uploading && !addDialogOpen && (
+          <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <Spinner className="size-8" />
+              <p className="text-muted-foreground">Uploading...</p>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <Spinner className="size-8" />
@@ -636,7 +755,7 @@ export default function InspirationsPage() {
                     className={cn(
                       "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
                       "hover:border-primary hover:bg-muted/50",
-                      file && "border-primary bg-muted/50"
+                      file && "border-primary bg-muted/50",
                     )}
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
@@ -757,9 +876,7 @@ export default function InspirationsPage() {
           {selectedItem && (
             <>
               <DialogHeader>
-                <DialogTitle>
-                  {selectedItem.title || "Inspiration"}
-                </DialogTitle>
+                <DialogTitle>{selectedItem.title || "Inspiration"}</DialogTitle>
                 {selectedItem.description && (
                   <DialogDescription>
                     {selectedItem.description}
@@ -803,8 +920,7 @@ export default function InspirationsPage() {
                     <Heart
                       className={cn(
                         "size-4",
-                        selectedItem.favorited &&
-                          "text-red-500 fill-red-500"
+                        selectedItem.favorited && "text-red-500 fill-red-500",
                       )}
                     />
                   </Button>
@@ -866,7 +982,9 @@ export default function InspirationsPage() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Edit Inspiration</DialogTitle>
-            <DialogDescription>Update the title and description.</DialogDescription>
+            <DialogDescription>
+              Update the title and description.
+            </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveEdit}>
@@ -890,7 +1008,9 @@ export default function InspirationsPage() {
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="edit-description">Description</FieldLabel>
+                  <FieldLabel htmlFor="edit-description">
+                    Description
+                  </FieldLabel>
                   <Textarea
                     id="edit-description"
                     value={description}

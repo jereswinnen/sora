@@ -19,6 +19,7 @@ import type * as feeds from "../feeds.js";
 import type * as helpers from "../helpers.js";
 import type * as highlights from "../highlights.js";
 import type * as http from "../http.js";
+import type * as inspirations from "../inspirations.js";
 import type * as parser from "../parser.js";
 import type * as tags from "../tags.js";
 import type * as userPreferences from "../userPreferences.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   highlights: typeof highlights;
   http: typeof http;
+  inspirations: typeof inspirations;
   parser: typeof parser;
   tags: typeof tags;
   userPreferences: typeof userPreferences;
