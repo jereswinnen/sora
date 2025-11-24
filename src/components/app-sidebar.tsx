@@ -50,7 +50,7 @@ const items = [
     icon: LibraryIcon,
   },
   {
-    title: "Inspirations",
+    title: "Inspiration",
     url: "/inspirations",
     icon: ImageIcon,
   },
@@ -68,7 +68,8 @@ export function AppSidebar() {
   const handleSignOut = () => {
     logout({
       logoutParams: {
-        returnTo: typeof window !== "undefined" ? window.location.origin : undefined,
+        returnTo:
+          typeof window !== "undefined" ? window.location.origin : undefined,
       },
     });
   };
