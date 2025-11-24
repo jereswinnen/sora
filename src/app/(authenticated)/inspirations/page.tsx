@@ -383,12 +383,7 @@ export default function InspirationsPage() {
             </EmptyContent>
           </Empty>
         ) : (
-          <MasonryGrid
-            items={items}
-            onItemClick={handleItemClick}
-            onLoadMore={handleLoadMore}
-            hasMore={hasMore}
-          />
+          <MasonryGrid items={items} onItemClick={handleItemClick} />
         )}
 
         {isLoadingMore && (
