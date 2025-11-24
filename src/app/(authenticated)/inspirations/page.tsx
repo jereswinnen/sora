@@ -3,10 +3,13 @@
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { api } from "../../../../convex/_generated/api";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useHeaderAction } from "@/components/layout-header-context";
 import { useKeyboardShortcut, singleKey } from "@/hooks/use-keyboard-shortcut";
+import { useInspirationActions } from "@/hooks/use-inspiration-actions";
+import { useImageUpload } from "@/hooks/use-image-upload";
+import { useDropZone } from "@/hooks/use-drop-zone";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +58,8 @@ import {
 } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { Kbd } from "@/components/ui/kbd";
+import { MasonryGrid } from "@/components/masonry-grid";
+import { DropZoneOverlay } from "@/components/drop-zone-overlay";
 
 // Type for inspiration with image URL
 interface InspirationWithUrl {
@@ -69,134 +74,6 @@ interface InspirationWithUrl {
   height?: number;
   addedAt: number;
   imageUrl: string | null;
-}
-
-// Helper function to clean Convex error messages
-function cleanErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    let message = err.message;
-    message = message.replace(/^\[CONVEX.*?\]\s*/g, "");
-    message = message.replace(/^\[Request ID:.*?\]\s*/g, "");
-    message = message.replace(/^Server Error\s*/i, "");
-    message = message.replace(/^Uncaught Error:\s*/i, "");
-    const atHandlerIndex = message.indexOf(" at handler");
-    if (atHandlerIndex !== -1) {
-      message = message.substring(0, atHandlerIndex);
-    }
-    const calledByIndex = message.indexOf(" Called by client");
-    if (calledByIndex !== -1) {
-      message = message.substring(0, calledByIndex);
-    }
-    return message.trim();
-  }
-  return "An unexpected error occurred";
-}
-
-// Masonry grid component
-function MasonryGrid({
-  items,
-  onItemClick,
-  onLoadMore,
-  hasMore,
-}: {
-  items: InspirationWithUrl[];
-  onItemClick: (item: InspirationWithUrl) => void;
-  onLoadMore: () => void;
-  hasMore: boolean;
-}) {
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          onLoadMore();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [hasMore, onLoadMore]);
-
-  return (
-    <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 space-y-4">
-      {items.map((item) => (
-        <div
-          key={item._id}
-          className="break-inside-avoid cursor-pointer group relative"
-          onClick={() => onItemClick(item)}
-        >
-          <div className="relative overflow-hidden rounded-lg border bg-muted">
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt={item.title || "Inspiration"}
-                className="w-full h-auto object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-            ) : (
-              <div className="aspect-square flex items-center justify-center">
-                <ImageIcon className="size-8 text-muted-foreground" />
-              </div>
-            )}
-            {/* Overlay on hover */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-              <div className="w-full">
-                {item.title && (
-                  <p className="text-white text-sm font-medium line-clamp-2">
-                    {item.title}
-                  </p>
-                )}
-                {item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {item.tags.slice(0, 3).map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="text-xs bg-white/20 text-white border-0"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                    {item.tags.length > 3 && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs bg-white/20 text-white border-0"
-                      >
-                        +{item.tags.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Favorite indicator */}
-            {item.favorited && (
-              <div className="absolute top-2 right-2">
-                <Heart className="size-4 text-red-500 fill-red-500" />
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
-      {/* Load more trigger */}
-      <div ref={loadMoreRef} className="h-4" />
-    </div>
-  );
 }
 
 export default function InspirationsPage() {
@@ -215,21 +92,19 @@ export default function InspirationsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InspirationWithUrl | null>(
-    null,
+    null
   );
 
   // Form state
-  const [file, setFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Page-level drag state
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const dragCounterRef = useRef(0);
+  // Hooks
+  const imageUpload = useImageUpload({ maxSizeMB: 20 });
+  const actions = useInspirationActions();
 
   // Convex hooks
   const inspirationsData = useQuery(api.inspirations.listInspirations, {
@@ -239,17 +114,59 @@ export default function InspirationsPage() {
   const allTags = useQuery(api.tags.getAllTags, {});
   const generateUploadUrl = useMutation(api.inspirations.generateUploadUrl);
   const saveInspiration = useMutation(api.inspirations.saveInspiration);
-  const updateInspiration = useMutation(api.inspirations.updateInspiration);
-  const deleteInspiration = useMutation(api.inspirations.deleteInspiration);
-  const toggleFavorite = useMutation(api.inspirations.toggleFavorite);
-  const addTag = useMutation(api.inspirations.addTag);
-  const removeTag = useMutation(api.inspirations.removeTag);
+
+  // Refresh data helper
+  const refreshData = useCallback(() => {
+    setCursor(undefined);
+    setItems([]);
+  }, []);
+
+  // Page-level drop zone for quick upload
+  const handleQuickUpload = useCallback(
+    async (file: File) => {
+      const validationError = imageUpload.validateFile(file);
+      if (validationError) {
+        toast.error(validationError);
+        return;
+      }
+
+      try {
+        const result = await imageUpload.upload(generateUploadUrl, file);
+        await saveInspiration({
+          storageId: result.storageId,
+          tags: [],
+          width: result.width,
+          height: result.height,
+        });
+        toast.success("Inspiration added!");
+        refreshData();
+      } catch {
+        toast.error("Failed to upload image");
+      }
+    },
+    [imageUpload, generateUploadUrl, saveInspiration, refreshData]
+  );
+
+  const { isDraggingOver, dropZoneProps } = useDropZone({
+    onDrop: handleQuickUpload,
+    accept: "image/*",
+    disabled: addDialogOpen,
+  });
 
   // Load initial data
   useEffect(() => {
     if (inspirationsData && !cursor) {
       setItems(inspirationsData.items);
       setHasMore(!!inspirationsData.nextCursor);
+    }
+  }, [inspirationsData, cursor]);
+
+  // Handle appending new items when cursor changes
+  useEffect(() => {
+    if (inspirationsData && cursor) {
+      setItems((prev) => [...prev, ...inspirationsData.items]);
+      setHasMore(!!inspirationsData.nextCursor);
+      setIsLoadingMore(false);
     }
   }, [inspirationsData, cursor]);
 
@@ -273,152 +190,48 @@ export default function InspirationsPage() {
   });
 
   const resetForm = () => {
-    setFile(null);
-    setFilePreview(null);
+    imageUpload.reset();
     setTitle("");
     setDescription("");
     setTags([]);
-    setError(null);
+    setFormError(null);
   };
 
   const handleLoadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore || !inspirationsData?.nextCursor) return;
-
     setIsLoadingMore(true);
     setCursor(inspirationsData.nextCursor);
-
-    // The useEffect will handle updating items when new data arrives
-    // But we need to append, not replace
   }, [isLoadingMore, hasMore, inspirationsData?.nextCursor]);
-
-  // Handle appending new items when cursor changes
-  useEffect(() => {
-    if (inspirationsData && cursor) {
-      setItems((prev) => [...prev, ...inspirationsData.items]);
-      setHasMore(!!inspirationsData.nextCursor);
-      setIsLoadingMore(false);
-    }
-  }, [inspirationsData, cursor]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      // Validate file type
-      if (!selectedFile.type.startsWith("image/")) {
-        setError("Please select an image file");
-        return;
-      }
-
-      // Validate file size (max 20MB)
-      if (selectedFile.size > 20 * 1024 * 1024) {
-        setError("File size must be less than 20MB");
-        return;
-      }
-
-      setFile(selectedFile);
-      setError(null);
-
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFilePreview(event.target?.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      if (!droppedFile.type.startsWith("image/")) {
-        setError("Please select an image file");
-        return;
-      }
-
-      if (droppedFile.size > 20 * 1024 * 1024) {
-        setError("File size must be less than 20MB");
-        return;
-      }
-
-      setFile(droppedFile);
-      setError(null);
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFilePreview(event.target?.result as string);
-      };
-      reader.readAsDataURL(droppedFile);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
-
-  const getImageDimensions = (
-    file: File,
-  ): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        resolve({ width: img.width, height: img.height });
-      };
-      img.src = URL.createObjectURL(file);
-    });
-  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      setError("Please select an image");
+    if (!imageUpload.file) {
+      setFormError("Please select an image");
       return;
     }
 
-    setUploading(true);
-    setError(null);
+    setIsSaving(true);
+    setFormError(null);
 
     try {
-      // Get image dimensions
-      const dimensions = await getImageDimensions(file);
-
-      // Step 1: Get upload URL
-      const uploadUrl = await generateUploadUrl();
-
-      // Step 2: Upload file
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to upload file");
-      }
-
-      const { storageId } = await response.json();
-
-      // Step 3: Save to database
+      const result = await imageUpload.upload(generateUploadUrl);
       await saveInspiration({
-        storageId,
+        storageId: result.storageId,
         title: title || undefined,
         description: description || undefined,
         tags,
-        width: dimensions.width,
-        height: dimensions.height,
+        width: result.width,
+        height: result.height,
       });
 
       toast.success("Inspiration added!");
       resetForm();
       setAddDialogOpen(false);
-
-      // Reset pagination to reload from beginning
-      setCursor(undefined);
-      setItems([]);
+      refreshData();
     } catch (err) {
-      setError(cleanErrorMessage(err));
+      setFormError(err instanceof Error ? err.message : "Failed to upload");
     } finally {
-      setUploading(false);
+      setIsSaving(false);
     }
   };
 
@@ -439,27 +252,22 @@ export default function InspirationsPage() {
     e.preventDefault();
     if (!selectedItem) return;
 
-    setUploading(true);
-    setError(null);
+    setIsSaving(true);
+    setFormError(null);
 
     try {
-      await updateInspiration({
-        inspirationId: selectedItem._id,
+      await actions.handleUpdate(selectedItem._id, {
         title: title || undefined,
         description: description || undefined,
       });
-      toast.success("Inspiration updated!");
       setEditDialogOpen(false);
       setSelectedItem(null);
       resetForm();
-
-      // Refresh data
-      setCursor(undefined);
-      setItems([]);
+      refreshData();
     } catch (err) {
-      setError(cleanErrorMessage(err));
+      setFormError(err instanceof Error ? err.message : "Failed to update");
     } finally {
-      setUploading(false);
+      setIsSaving(false);
     }
   };
 
@@ -467,17 +275,13 @@ export default function InspirationsPage() {
     if (!selectedItem) return;
 
     try {
-      await deleteInspiration({ inspirationId: selectedItem._id });
-      toast.success("Inspiration deleted!");
+      await actions.handleDelete(selectedItem._id);
       setDeleteDialogOpen(false);
       setViewDialogOpen(false);
       setSelectedItem(null);
-
-      // Refresh data
-      setCursor(undefined);
-      setItems([]);
-    } catch (err) {
-      toast.error(cleanErrorMessage(err));
+      refreshData();
+    } catch {
+      // Error already handled by hook with toast
     }
   };
 
@@ -485,204 +289,76 @@ export default function InspirationsPage() {
     if (!selectedItem) return;
 
     try {
-      const result = await toggleFavorite({
-        inspirationId: selectedItem._id,
-      });
-      setSelectedItem({
-        ...selectedItem,
-        favorited: result.favorited,
-      });
-      // Update in items list too
+      const result = await actions.handleToggleFavorite(
+        selectedItem._id,
+        !!selectedItem.favorited
+      );
+      setSelectedItem({ ...selectedItem, favorited: result.favorited });
       setItems((prev) =>
         prev.map((item) =>
           item._id === selectedItem._id
             ? { ...item, favorited: result.favorited }
-            : item,
-        ),
+            : item
+        )
       );
-    } catch (err) {
-      toast.error(cleanErrorMessage(err));
+    } catch {
+      // Error already handled by hook with toast
     }
   };
 
   const handleAddTags = async (newTags: string[]) => {
     if (!selectedItem) return;
 
-    for (const tag of newTags) {
-      if (!selectedItem.tags.includes(tag)) {
-        try {
-          await addTag({ inspirationId: selectedItem._id, tag });
-        } catch (err) {
-          toast.error(cleanErrorMessage(err));
-        }
+    try {
+      const addedTags = await actions.handleAddTags(
+        selectedItem._id,
+        newTags,
+        selectedItem.tags
+      );
+      if (addedTags && addedTags.length > 0) {
+        const updatedTags = [...new Set([...selectedItem.tags, ...addedTags])];
+        setSelectedItem({ ...selectedItem, tags: updatedTags });
+        setItems((prev) =>
+          prev.map((item) =>
+            item._id === selectedItem._id ? { ...item, tags: updatedTags } : item
+          )
+        );
       }
+    } catch {
+      // Error already handled by hook with toast
     }
-
-    // Update selected item
-    setSelectedItem({
-      ...selectedItem,
-      tags: [...new Set([...selectedItem.tags, ...newTags])],
-    });
-
-    // Update in items list
-    setItems((prev) =>
-      prev.map((item) =>
-        item._id === selectedItem._id
-          ? { ...item, tags: [...new Set([...item.tags, ...newTags])] }
-          : item,
-      ),
-    );
   };
 
   const handleRemoveTag = async (tag: string) => {
     if (!selectedItem) return;
 
     try {
-      await removeTag({ inspirationId: selectedItem._id, tag });
-
-      // Update selected item
-      setSelectedItem({
-        ...selectedItem,
-        tags: selectedItem.tags.filter((t) => t !== tag),
-      });
-
-      // Update in items list
+      await actions.handleRemoveTag(selectedItem._id, tag);
+      const updatedTags = selectedItem.tags.filter((t) => t !== tag);
+      setSelectedItem({ ...selectedItem, tags: updatedTags });
       setItems((prev) =>
         prev.map((item) =>
-          item._id === selectedItem._id
-            ? { ...item, tags: item.tags.filter((t) => t !== tag) }
-            : item,
-        ),
+          item._id === selectedItem._id ? { ...item, tags: updatedTags } : item
+        )
       );
-    } catch (err) {
-      toast.error(cleanErrorMessage(err));
-    }
-  };
-
-  // Page-level drag and drop handlers for quick upload
-  const handlePageDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounterRef.current++;
-    if (e.dataTransfer.types.includes("Files")) {
-      setIsDraggingOver(true);
-    }
-  };
-
-  const handlePageDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounterRef.current--;
-    if (dragCounterRef.current === 0) {
-      setIsDraggingOver(false);
-    }
-  };
-
-  const handlePageDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handlePageDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounterRef.current = 0;
-    setIsDraggingOver(false);
-
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (!droppedFile) return;
-
-    // Validate file type
-    if (!droppedFile.type.startsWith("image/")) {
-      toast.error("Please drop an image file");
-      return;
-    }
-
-    // Validate file size (max 20MB)
-    if (droppedFile.size > 20 * 1024 * 1024) {
-      toast.error("File size must be less than 20MB");
-      return;
-    }
-
-    // Upload directly without opening dialog
-    setUploading(true);
-
-    try {
-      // Get image dimensions
-      const dimensions = await getImageDimensions(droppedFile);
-
-      // Step 1: Get upload URL
-      const uploadUrl = await generateUploadUrl();
-
-      // Step 2: Upload file
-      const response = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": droppedFile.type },
-        body: droppedFile,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to upload file");
-      }
-
-      const { storageId } = await response.json();
-
-      // Step 3: Save to database (no title/description/tags - user can add later)
-      await saveInspiration({
-        storageId,
-        tags: [],
-        width: dimensions.width,
-        height: dimensions.height,
-      });
-
-      toast.success("Inspiration added!");
-
-      // Reset pagination to reload from beginning
-      setCursor(undefined);
-      setItems([]);
-    } catch (err) {
-      toast.error(cleanErrorMessage(err));
-    } finally {
-      setUploading(false);
+    } catch {
+      // Error already handled by hook with toast
     }
   };
 
   const isLoading = !inspirationsData && items.length === 0;
+  const showUploadOverlay = imageUpload.isUploading && !addDialogOpen;
 
   return (
     <>
       <div
         className="flex flex-1 flex-col gap-4 p-4 relative"
-        onDragEnter={handlePageDragEnter}
-        onDragLeave={handlePageDragLeave}
-        onDragOver={handlePageDragOver}
-        onDrop={handlePageDrop}
+        {...dropZoneProps}
       >
-        {/* Drag overlay */}
-        <div
-          className={cn(
-            "absolute inset-0 z-50 flex items-center justify-center pointer-events-none transition-all duration-400 ease-in-out",
-            isDraggingOver
-              ? "bg-background/60 backdrop-blur-[2px] opacity-100"
-              : "bg-transparent backdrop-blur-0 opacity-0",
-          )}
-        >
-          <div
-            className={cn(
-              "flex flex-col items-center gap-3 text-muted-foreground transition-all duration-400 ease-in-out",
-              isDraggingOver ? "opacity-100 scale-100" : "opacity-0 scale-95",
-            )}
-          >
-            <Upload className="size-8 animate-pulse" />
-            <p className="text-sm">Drop to upload</p>
-          </div>
-        </div>
-
-        {/* Upload in progress overlay */}
-        {uploading && !addDialogOpen && (
-          <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <Spinner className="size-8" />
-              <p className="text-muted-foreground">Uploading...</p>
-            </div>
-          </div>
-        )}
+        <DropZoneOverlay
+          isDraggingOver={isDraggingOver}
+          isUploading={showUploadOverlay}
+        />
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
@@ -740,33 +416,34 @@ export default function InspirationsPage() {
 
           <form onSubmit={handleUpload}>
             <FieldGroup>
-              {error && (
+              {(formError || imageUpload.error) && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    {formError || imageUpload.error}
+                  </AlertDescription>
                 </Alert>
               )}
 
               <FieldSet>
-                {/* File Upload */}
                 <Field>
                   <FieldLabel>Image</FieldLabel>
                   <div
                     className={cn(
                       "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
                       "hover:border-primary hover:bg-muted/50",
-                      file && "border-primary bg-muted/50",
+                      imageUpload.file && "border-primary bg-muted/50"
                     )}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
+                    onDrop={imageUpload.handleDrop}
+                    onDragOver={imageUpload.handleDragOver}
                     onClick={() =>
                       document.getElementById("file-input")?.click()
                     }
                   >
-                    {filePreview ? (
+                    {imageUpload.preview ? (
                       <div className="relative">
                         <img
-                          src={filePreview}
+                          src={imageUpload.preview}
                           alt="Preview"
                           className="max-h-48 mx-auto rounded"
                         />
@@ -777,8 +454,7 @@ export default function InspirationsPage() {
                           className="absolute top-2 right-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setFile(null);
-                            setFilePreview(null);
+                            imageUpload.reset();
                           }}
                         >
                           <X className="size-4" />
@@ -795,13 +471,12 @@ export default function InspirationsPage() {
                       id="file-input"
                       type="file"
                       accept="image/*"
-                      onChange={handleFileChange}
+                      onChange={imageUpload.handleFileChange}
                       className="hidden"
                     />
                   </div>
                 </Field>
 
-                {/* Title */}
                 <Field>
                   <FieldLabel htmlFor="title">Title (optional)</FieldLabel>
                   <Input
@@ -812,7 +487,6 @@ export default function InspirationsPage() {
                   />
                 </Field>
 
-                {/* Description */}
                 <Field>
                   <FieldLabel htmlFor="description">
                     Description (optional)
@@ -826,7 +500,6 @@ export default function InspirationsPage() {
                   />
                 </Field>
 
-                {/* Tags */}
                 <Field>
                   <FieldLabel>Tags</FieldLabel>
                   <TagCombobox
@@ -846,8 +519,11 @@ export default function InspirationsPage() {
                 >
                   Cancel <Kbd>Esc</Kbd>
                 </Button>
-                <Button type="submit" disabled={uploading || !file}>
-                  {uploading ? (
+                <Button
+                  type="submit"
+                  disabled={isSaving || imageUpload.isUploading || !imageUpload.file}
+                >
+                  {isSaving || imageUpload.isUploading ? (
                     <>
                       <Spinner />
                       Uploading...
@@ -898,7 +574,6 @@ export default function InspirationsPage() {
                 )}
               </div>
 
-              {/* Tags */}
               {selectedItem.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {selectedItem.tags.map((tag) => (
@@ -920,7 +595,7 @@ export default function InspirationsPage() {
                     <Heart
                       className={cn(
                         "size-4",
-                        selectedItem.favorited && "text-red-500 fill-red-500",
+                        selectedItem.favorited && "text-red-500 fill-red-500"
                       )}
                     />
                   </Button>
@@ -989,10 +664,10 @@ export default function InspirationsPage() {
 
           <form onSubmit={handleSaveEdit}>
             <FieldGroup>
-              {error && (
+              {formError && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{formError}</AlertDescription>
                 </Alert>
               )}
 
@@ -1008,9 +683,7 @@ export default function InspirationsPage() {
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="edit-description">
-                    Description
-                  </FieldLabel>
+                  <FieldLabel htmlFor="edit-description">Description</FieldLabel>
                   <Textarea
                     id="edit-description"
                     value={description}
@@ -1029,8 +702,8 @@ export default function InspirationsPage() {
                 >
                   Cancel <Kbd>Esc</Kbd>
                 </Button>
-                <Button type="submit" disabled={uploading}>
-                  {uploading ? (
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? (
                     <>
                       <Spinner />
                       Saving...
