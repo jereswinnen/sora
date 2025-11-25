@@ -19,14 +19,14 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  AlertCircle,
   ImageIcon,
-  Upload,
-  X,
-  Heart,
-  Trash2,
-  Pencil,
-  Tag,
+  HeartIcon,
+  TagIcon,
+  PencilLineIcon,
+  Trash2Icon,
+  AlertCircleIcon,
+  XIcon,
+  UploadCloudIcon,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -92,7 +92,7 @@ export default function InspirationsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagsDialogOpen, setTagsDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InspirationWithUrl | null>(
-    null
+    null,
   );
 
   // Form state
@@ -144,7 +144,7 @@ export default function InspirationsPage() {
         toast.error("Failed to upload image");
       }
     },
-    [imageUpload, generateUploadUrl, saveInspiration, refreshData]
+    [imageUpload, generateUploadUrl, saveInspiration, refreshData],
   );
 
   const { isDraggingOver, dropZoneProps } = useDropZone({
@@ -291,15 +291,15 @@ export default function InspirationsPage() {
     try {
       const result = await actions.handleToggleFavorite(
         selectedItem._id,
-        !!selectedItem.favorited
+        !!selectedItem.favorited,
       );
       setSelectedItem({ ...selectedItem, favorited: result.favorited });
       setItems((prev) =>
         prev.map((item) =>
           item._id === selectedItem._id
             ? { ...item, favorited: result.favorited }
-            : item
-        )
+            : item,
+        ),
       );
     } catch {
       // Error already handled by hook with toast
@@ -313,15 +313,17 @@ export default function InspirationsPage() {
       const addedTags = await actions.handleAddTags(
         selectedItem._id,
         newTags,
-        selectedItem.tags
+        selectedItem.tags,
       );
       if (addedTags && addedTags.length > 0) {
         const updatedTags = [...new Set([...selectedItem.tags, ...addedTags])];
         setSelectedItem({ ...selectedItem, tags: updatedTags });
         setItems((prev) =>
           prev.map((item) =>
-            item._id === selectedItem._id ? { ...item, tags: updatedTags } : item
-          )
+            item._id === selectedItem._id
+              ? { ...item, tags: updatedTags }
+              : item,
+          ),
         );
       }
     } catch {
@@ -338,8 +340,8 @@ export default function InspirationsPage() {
       setSelectedItem({ ...selectedItem, tags: updatedTags });
       setItems((prev) =>
         prev.map((item) =>
-          item._id === selectedItem._id ? { ...item, tags: updatedTags } : item
-        )
+          item._id === selectedItem._id ? { ...item, tags: updatedTags } : item,
+        ),
       );
     } catch {
       // Error already handled by hook with toast
@@ -413,7 +415,7 @@ export default function InspirationsPage() {
             <FieldGroup>
               {(formError || imageUpload.error) && (
                 <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircleIcon className="size-4" />
                   <AlertDescription>
                     {formError || imageUpload.error}
                   </AlertDescription>
@@ -427,7 +429,7 @@ export default function InspirationsPage() {
                     className={cn(
                       "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
                       "hover:border-primary hover:bg-muted/50",
-                      imageUpload.file && "border-primary bg-muted/50"
+                      imageUpload.file && "border-primary bg-muted/50",
                     )}
                     onDrop={imageUpload.handleDrop}
                     onDragOver={imageUpload.handleDragOver}
@@ -452,12 +454,12 @@ export default function InspirationsPage() {
                             imageUpload.reset();
                           }}
                         >
-                          <X className="size-4" />
+                          <XIcon className="size-4" />
                         </Button>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <Upload className="size-8" />
+                        <UploadCloudIcon className="size-8" />
                         <p>Drop an image here or click to browse</p>
                         <p className="text-xs">Max file size: 20MB</p>
                       </div>
@@ -516,7 +518,9 @@ export default function InspirationsPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSaving || imageUpload.isUploading || !imageUpload.file}
+                  disabled={
+                    isSaving || imageUpload.isUploading || !imageUpload.file
+                  }
                 >
                   {isSaving || imageUpload.isUploading ? (
                     <>
@@ -580,57 +584,48 @@ export default function InspirationsPage() {
               )}
 
               <DialogFooter className="flex-col sm:flex-row gap-2">
-                <div className="flex gap-2 flex-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={handleToggleFavorite}
-                  >
-                    <Heart
-                      className={cn(
-                        "size-4",
-                        selectedItem.favorited && "text-red-500 fill-red-500"
-                      )}
-                    />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setViewDialogOpen(false);
-                      setTagsDialogOpen(true);
-                    }}
-                  >
-                    <Tag className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={handleEdit}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setViewDialogOpen(false);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setViewDialogOpen(false)}
+                  size="icon"
+                  onClick={handleToggleFavorite}
                 >
-                  Close
+                  <HeartIcon
+                    className={cn(
+                      "size-4",
+                      selectedItem.favorited && "text-red-500 fill-red-500",
+                    )}
+                  />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    setTagsDialogOpen(true);
+                  }}
+                >
+                  <TagIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleEdit}
+                >
+                  <PencilLineIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2Icon className="size-4" />
                 </Button>
               </DialogFooter>
             </>
@@ -661,7 +656,7 @@ export default function InspirationsPage() {
             <FieldGroup>
               {formError && (
                 <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircleIcon className="size-4" />
                   <AlertDescription>{formError}</AlertDescription>
                 </Alert>
               )}
@@ -678,7 +673,9 @@ export default function InspirationsPage() {
                 </Field>
 
                 <Field>
-                  <FieldLabel htmlFor="edit-description">Description</FieldLabel>
+                  <FieldLabel htmlFor="edit-description">
+                    Description
+                  </FieldLabel>
                   <Textarea
                     id="edit-description"
                     value={description}
