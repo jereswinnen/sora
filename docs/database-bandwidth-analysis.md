@@ -1,6 +1,6 @@
 # Database Bandwidth Analysis
 
-> **Context**: This app is for personal use (1-2 users only). This significantly changes which optimizations are worth pursuing.
+> **Context**: This app is for personal use (1-2 users only). Despite low user count, you're hitting 1GB/month due to a specific issue with how article content is being read.
 
 ## What is Database Bandwidth?
 
@@ -10,204 +10,181 @@ In Convex, **database bandwidth** measures the amount of data transferred betwee
 - **Writes**: Data written to the database (inserts, patches, deletes)
 - **Index scans**: Data read while traversing indexes to find matching documents
 
-Every time a query fetches documents or a mutation writes data, you consume bandwidth. The cost is based on the **size of documents** transferred, not just the number of operations.
-
-### Why It Matters (For Multi-User Apps)
-
-- Convex bills based on database bandwidth usage
-- Excessive reads slow down your application
-- Unbounded queries (`.collect()` without limits) can cause memory issues
-- Inefficient patterns compound as your user base grows
-
-### Why Most of This Doesn't Matter (For 1-2 Users)
-
-With a single-user app, the scale changes everything:
-- You'll likely have <500 articles, <100 highlights, <20 feed subscriptions
-- Even "inefficient" queries read trivial amounts of data
-- Convex free tier handles personal use easily
-- Query speed is imperceptible at this scale
+**Critical point**: Bandwidth is charged when data is **read from the database**, not when it's returned to the client. If you read a 100KB document and only return the title, you still pay for 100KB.
 
 ---
 
-## Current State: Reassessed for Personal Use
+## Root Cause: The `content` Field
 
-### Overview
+Your `articles` table stores full HTML content (50-200KB per article). The problem is that **several queries read this field even when they don't need it**.
 
-| Original Severity | Reassessed | Count | Notes |
-|-------------------|------------|-------|-------|
-| Critical | **Non-issue** | 4 | Scale too small to matter |
-| Critical | **Low priority** | 1 | Security hygiene (debug endpoint) |
-| Moderate | **Non-issue** | 5 | Negligible at this scale |
-
-**Your codebase is fine for personal use.** The patterns I originally flagged as "critical" only matter at scale (100+ users).
-
----
-
-## What Actually Matters (Personal Use)
-
-### 1. Remove `debugListAllHighlights` (Security Hygiene)
-
-**Location**: `convex/highlights.ts:190`
-
-**Why it still matters**: Even for personal use, having an unauthenticated endpoint that exposes all data is bad practice. If your Convex deployment URL leaks, anyone could read your highlights.
+### The Smoking Gun: `listArticles`
 
 ```typescript
-// Current: No auth, exposes everything
-export const debugListAllHighlights = query({
-  handler: async (ctx) => {
-    return await ctx.db.query("highlights").collect();
-  },
-});
+// articles.ts:161 - This reads FULL documents including content!
+const articles = await query.take(fetchLimit);
+
+// This exclusion happens AFTER the read - too late!
+return filtered.slice(0, limit).map((article) => ({
+  _id: article._id,
+  title: article.title,
+  // content is excluded here, but was already read above
+}));
 ```
 
-**Fix**: Delete it or add authentication.
+**The math**:
+| Factor | Value |
+|--------|-------|
+| Articles fetched per query | 150 (limit × 3 for filtering) |
+| Average `content` size | ~100KB |
+| **Bandwidth per query** | **~15MB** |
 
-**Effort**: 2 minutes
+With Convex's reactive system, this query re-runs when:
+- Any article is added/modified/deleted
+- Browser tab regains focus
+- Network reconnects
+- Page loads
 
----
+**50-100 query runs × 15MB = 750MB - 1.5GB/month** ← This is your problem!
 
-### 2. Change Feed Cron to 8 Hours (Optional)
-
-**Location**: `convex/crons.ts` (or wherever the cron is defined)
-
-**Why**: Not for performance—just because checking RSS feeds hourly is overkill for personal use. Most blogs don't post more than once a day.
-
-**Current impact with 1-2 users**:
-- ~10-20 subscriptions × 24 checks/day = 240-480 operations/day
-- This is **completely fine** and well within free tier
-
-**With 8-hour interval**:
-- ~10-20 subscriptions × 3 checks/day = 30-60 operations/day
-- Saves a tiny amount, but more importantly matches actual need
-
-**Effort**: 1 minute (change interval value)
-
----
-
-### 3. Add Compound Indexes (Good Practice)
-
-**Location**: `convex/schema.ts`
-
-**Why**: Even at small scale, these make queries cleaner and slightly faster. They're trivial to add and good habits.
+### Secondary Issue: `checkArticleExists`
 
 ```typescript
-// Add to articles table
-.index("by_user_url", ["userId", "url"])
-
-// Add to bookmarks table
-.index("by_user_url", ["userId", "url"])
-
-// Add to books table
-.index("by_user_title_author", ["userId", "title", "author"])
+// feeds.ts:100-104
+const article = await ctx.db
+  .query("articles")
+  .withIndex("by_user", (q) => q.eq("userId", args.userId))
+  .filter((q) => q.eq(q.field("url"), args.url))  // Scans articles with content!
+  .first();
 ```
 
-**Effort**: 5 minutes
+This scans through articles (reading full content) until it finds a URL match. The cron job calls this ~20× per feed, per hour.
 
 ---
 
-## What Doesn't Matter (At Your Scale)
+## The Fix: Don't Read What You Don't Need
 
-### Tag Operation Multiplier
+Convex doesn't support field projection (selecting specific fields), so you have two options:
 
-**Original concern**: Saving article with 5 tags = 22 operations instead of 2.
+### Option 1: Separate the content into its own table (Recommended)
 
-**Reality for 1-2 users**: Even if you save 10 articles/day with 5 tags each, that's 220 operations/day. Convex free tier allows millions. **Non-issue.**
+Split the `articles` table:
 
-### Feed Cron Reading All Subscriptions
+```
+articles (small, frequently queried)     articleContent (large, rarely queried)
+├── _id                                  ├── _id
+├── userId                               ├── articleId (reference)
+├── url                                  └── content (the big field)
+├── title
+├── excerpt
+├── imageUrl
+├── author
+├── savedAt
+├── tags
+└── ... (small metadata)
+```
 
-**Original concern**: `.collect()` reads entire subscriptions table.
+**Why this works**:
+- `listArticles` now reads small documents (~1-2KB each)
+- `getArticle` does 2 reads but only when viewing a single article
+- 150 articles × 2KB = 300KB per query (vs 15MB before) = **98% reduction**
 
-**Reality for 1-2 users**: With 10-20 subscriptions, this reads 10-20 small documents. **Non-issue.**
+### Option 2: Add a compound index for URL lookups
 
-### `listUserHighlights` Unbounded
+At minimum, add this index to eliminate content scanning in `checkArticleExists`:
 
-**Original concern**: No limit on `.collect()`.
+```typescript
+// In schema.ts, add to articles table:
+.index("by_user_url", ["userId", "url"])
+```
 
-**Reality for 1-2 users**: Even with 500 highlights, loading them all is fast and cheap. **Non-issue.**
+Then update the query:
+```typescript
+const article = await ctx.db
+  .query("articles")
+  .withIndex("by_user_url", (q) =>
+    q.eq("userId", args.userId).eq("url", args.url)
+  )
+  .first();
+```
 
-### `saveHighlights` Replace-All Pattern
-
-**Original concern**: Deletes all + re-inserts all highlights.
-
-**Reality for 1-2 users**: Even replacing 50 highlights = 101 operations. Happens rarely. **Non-issue.**
-
-### List Query Multipliers
-
-**Original concern**: Fetching 150 documents to return 50.
-
-**Reality for 1-2 users**: Reading 150 small article metadata records is trivial. **Non-issue.**
-
-### Missing Compound Indexes for Duplicate Checks
-
-**Original concern**: Filter scans after index lookup.
-
-**Reality for 1-2 users**: Scanning 200 articles to find a URL match takes milliseconds. **Non-issue** (though still nice to fix).
+This is a direct lookup—no scanning, no reading content of other articles.
 
 ---
 
-## Recommended Actions (Personal Use)
+## Recommended Actions (Updated)
 
-| Action | Priority | Effort | Reason |
-|--------|----------|--------|--------|
-| Delete `debugListAllHighlights` | **Do it** | 2 min | Security hygiene |
-| Add compound indexes | **Nice to have** | 5 min | Good practice, trivial effort |
-| Change cron to 8 hours | **Optional** | 1 min | Matches actual need |
-| Everything else | **Skip** | - | Not worth the effort at this scale |
+| Priority | Action | Effort | Impact |
+|----------|--------|--------|--------|
+| **P0** | Add `by_user_url` index | 5 min | Stops content scanning in feed checks |
+| **P1** | Split content to separate table | 1-2 hours | **98% bandwidth reduction** |
+| **P2** | Delete `debugListAllHighlights` | 2 min | Security hygiene |
+| **P3** | Change cron to 8 hours | 1 min | Minor savings |
+
+### Quick Win: The Index (Do This Now)
+
+Add to `convex/schema.ts`:
+
+```typescript
+articles: defineTable({...})
+  .index("by_user_url", ["userId", "url"])  // Add this line
+```
+
+Update `convex/feeds.ts` `checkArticleExists`:
+
+```typescript
+const article = await ctx.db
+  .query("articles")
+  .withIndex("by_user_url", (q) =>
+    q.eq("userId", args.userId).eq("url", args.url)
+  )
+  .first();
+```
+
+### The Real Fix: Split Content Table
+
+This requires more work but solves the root cause:
+
+1. Create `articleContent` table with `articleId` + `content`
+2. Modify `saveArticleToDB` to insert into both tables
+3. Modify `listArticles` to query only the `articles` table (now small)
+4. Modify `getArticle` to join with `articleContent`
+5. Migrate existing data
 
 ---
 
-## When Would Optimizations Matter?
+## Why This Wasn't Obvious
 
-These patterns would become actual problems if:
+The code *looks* efficient:
 
-- You had **100+ users** (tag multiplier, cron queries)
-- You accumulated **10,000+ highlights** (unbounded queries)
-- You saved **50+ articles per day** (tag operations)
-- You had **100+ feed subscriptions** (cron load)
+```typescript
+// Appears to exclude content from the return
+return articles.map(a => ({
+  title: a.title,
+  // content not included!
+}));
+```
 
-For personal use with 1-2 users, you'd need years of heavy use to hit any limits.
+But Convex (like most databases) reads entire documents. The exclusion happens in JavaScript after the database read. This is a common gotcha.
+
+---
+
+## Bandwidth Estimates After Fixes
+
+| Scenario | Before | After Index | After Split |
+|----------|--------|-------------|-------------|
+| `listArticles` (150 articles) | 15MB | 15MB | 300KB |
+| `checkArticleExists` (per call) | ~500KB | ~2KB | ~2KB |
+| Feed cron (20 items × 10 feeds × hourly) | ~100MB/day | ~400KB/day | ~400KB/day |
+| **Monthly total** | 1GB+ | ~500MB | **~50MB** |
 
 ---
 
 ## Summary
 
-**Your codebase is well-structured for a personal app.** The original analysis identified patterns that don't scale well, but at 1-2 users, "scaling" isn't a concern.
+**Your bandwidth issue is caused by reading the `content` field when you don't need it.**
 
-**Do these** (10 minutes total):
-1. Delete the debug endpoint (security)
-2. Add compound indexes (good practice)
-3. Optionally change cron to 8 hours (matches need)
+1. **Quick fix**: Add `by_user_url` index to stop content scanning in feed checks
+2. **Real fix**: Split content into a separate table so `listArticles` doesn't read it
 
-**Skip everything else** — the effort isn't worth it for the negligible benefit at your scale.
-
----
-
-## Appendix: Original Analysis (For Reference)
-
-The patterns below were originally flagged but are **not worth fixing** for personal use:
-
-<details>
-<summary>Tag Operation Details</summary>
-
-Every content save with tags triggers:
-- `normalizeAndCreateTag`: 1 read + 1 write per tag
-- `incrementTagCount`: 1 read + 1 write per tag
-
-Article with 5 tags = 22 total operations. At scale this compounds; for 1-2 users it's negligible.
-</details>
-
-<details>
-<summary>Query Multiplier Details</summary>
-
-- `listArticles`: fetches `limit * 3` documents
-- `listBooks`: fetches `limit * 2` documents
-- `listBookmarks`: fetches `limit * 2` documents
-
-This over-fetching accounts for in-memory tag filtering. At scale it wastes bandwidth; for 1-2 users the extra reads are imperceptible.
-</details>
-
-<details>
-<summary>Feed Cron Details</summary>
-
-`getAllSubscriptionsInternal` uses `.collect()` on entire table. For 100+ users this is expensive; for 1-2 users with 10-20 subscriptions it's trivial.
-</details>
+The architecture pattern of "store large blobs separately" is common in document databases for exactly this reason.
