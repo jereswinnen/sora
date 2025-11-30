@@ -8,6 +8,7 @@ import {
   FileTextIcon,
   LayoutDashboardIcon,
   RssIcon,
+  ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth0 } from "@auth0/auth0-react";
@@ -49,6 +50,11 @@ const items = [
     icon: LibraryIcon,
   },
   {
+    title: "Inspiration",
+    url: "/inspirations",
+    icon: ImageIcon,
+  },
+  {
     title: "Feeds",
     url: "/feeds",
     icon: RssIcon,
@@ -62,7 +68,8 @@ export function AppSidebar() {
   const handleSignOut = () => {
     logout({
       logoutParams: {
-        returnTo: typeof window !== "undefined" ? window.location.origin : undefined,
+        returnTo:
+          typeof window !== "undefined" ? window.location.origin : undefined,
       },
     });
   };

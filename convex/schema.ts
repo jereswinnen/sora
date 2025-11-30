@@ -143,6 +143,21 @@ const schema = defineSchema({
     lastFetchedAt: v.optional(v.number()), // Last successful fetch
     subscribedAt: v.number(), // When user subscribed
   }).index("by_user", ["userId"]),
+
+  // Inspirations: Design inspiration images and screenshots
+  inspirations: defineTable({
+    userId: v.string(), // Auth0 user ID
+    storageId: v.id("_storage"), // Convex file storage reference
+    title: v.optional(v.string()), // Optional title/name
+    description: v.optional(v.string()), // Optional description
+    tags: v.array(v.string()), // Uses global tag system
+    favorited: v.optional(v.boolean()), // For quick access
+    width: v.optional(v.number()), // Image width for masonry layout
+    height: v.optional(v.number()), // Image height for masonry layout
+    addedAt: v.number(), // Timestamp for sorting
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_added", ["userId", "addedAt"]),
 });
 
 export default schema;
