@@ -59,6 +59,13 @@ export const clearDatabase = mutation({
 
     console.log("Starting database clear (keeping users)...");
 
+    // Delete all article content first (must be done before articles due to foreign key reference)
+    const articleContent = await ctx.db.query("articleContent").collect();
+    for (const content of articleContent) {
+      await ctx.db.delete(content._id);
+    }
+    console.log(`Deleted ${articleContent.length} article content entries`);
+
     // Delete all articles
     const articles = await ctx.db.query("articles").collect();
     for (const article of articles) {
@@ -85,6 +92,7 @@ export const clearDatabase = mutation({
     return {
       success: true,
       deleted: {
+        articleContent: articleContent.length,
         articles: articles.length,
         tags: tags.length,
         userPreferences: prefs.length,

@@ -56,12 +56,10 @@ export const saveArticleForUser = internalMutation({
     tags: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    // Check if article already exists for this user
+    // Check if article already exists for this user (using efficient index lookup)
     const existing = await ctx.db
       .query("articles")
-      .filter((q) =>
-        q.and(q.eq(q.field("userId"), args.userId), q.eq(q.field("url"), args.url))
-      )
+      .withIndex("by_user_url", (q) => q.eq("userId", args.userId).eq("url", args.url))
       .first();
 
     if (existing) {
@@ -97,12 +95,11 @@ export const saveArticleForUser = internalMutation({
       });
     }
 
-    // Insert article
+    // Insert article metadata (without content)
     const articleId = await ctx.db.insert("articles", {
       userId: args.userId,
       url: args.url,
       title: args.title,
-      content: args.content,
       excerpt: args.excerpt,
       imageUrl: args.imageUrl,
       author: args.author,
@@ -110,6 +107,12 @@ export const saveArticleForUser = internalMutation({
       readingTimeMinutes: args.readingTimeMinutes,
       savedAt: Date.now(),
       tags: uniqueTags,
+    });
+
+    // Insert content separately (reduces bandwidth for list queries)
+    await ctx.db.insert("articleContent", {
+      articleId: articleId,
+      content: args.content,
     });
 
     return articleId;

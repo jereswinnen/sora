@@ -22,11 +22,13 @@ const schema = defineSchema({
   ...authTables,
 
   // Articles: Saved web articles for reading later
+  // Note: Content is stored separately in articleContent table to reduce bandwidth
+  // The content field is deprecated but kept optional for migration compatibility
   articles: defineTable({
     userId: v.string(), // Convex Auth user ID from getUserIdentity().subject
     url: v.string(),
     title: v.string(),
-    content: v.string(),
+    content: v.optional(v.string()), // DEPRECATED: kept for migration, new articles use articleContent table
     excerpt: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     author: v.optional(v.string()),
@@ -41,14 +43,18 @@ const schema = defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_saved", ["userId", "savedAt"])
     .index("by_user_archived", ["userId", "archived"])
+    .index("by_user_url", ["userId", "url"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["userId"],
-    })
-    .searchIndex("search_content", {
-      searchField: "content",
-      filterFields: ["userId"],
     }),
+
+  // Article Content: Large content field stored separately to reduce bandwidth
+  // When listing articles, only metadata is read. Content is fetched on demand.
+  articleContent: defineTable({
+    articleId: v.id("articles"),
+    content: v.string(),
+  }).index("by_article", ["articleId"]),
 
   // Tags: User-defined labels for organizing content
   // Uses normalized names for case-insensitive matching while preserving display names

@@ -90,6 +90,7 @@ export const getAllSubscriptionsInternal = internalQuery({
 
 /**
  * Query: Check if article already exists for user
+ * Uses compound index for efficient direct lookup (no scanning)
  */
 export const checkArticleExists = internalQuery({
   args: {
@@ -99,8 +100,7 @@ export const checkArticleExists = internalQuery({
   handler: async (ctx, args) => {
     const article = await ctx.db
       .query("articles")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("url"), args.url))
+      .withIndex("by_user_url", (q) => q.eq("userId", args.userId).eq("url", args.url))
       .first();
 
     return !!article;

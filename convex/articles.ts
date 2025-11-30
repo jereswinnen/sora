@@ -71,10 +71,10 @@ export const saveArticleToDB = mutation({
     }
     const userId = identity.subject; // Use Auth0 subject as userId
 
-    // Check if article already exists for this user
+    // Check if article already exists for this user (using efficient index lookup)
     const existing = await ctx.db
       .query("articles")
-      .filter((q) => q.and(q.eq(q.field("userId"), userId), q.eq(q.field("url"), args.url)))
+      .withIndex("by_user_url", (q) => q.eq("userId", userId).eq("url", args.url))
       .first();
 
     if (existing) {
@@ -103,12 +103,11 @@ export const saveArticleToDB = mutation({
       await ctx.runMutation(api.tags.incrementTagCount, { tagName: tag });
     }
 
-    // Insert article
+    // Insert article metadata (without content)
     const articleId = await ctx.db.insert("articles", {
       userId: userId,
       url: args.url,
       title: args.title,
-      content: args.content,
       excerpt: args.excerpt,
       imageUrl: args.imageUrl,
       author: args.author,
@@ -116,6 +115,12 @@ export const saveArticleToDB = mutation({
       readingTimeMinutes: args.readingTimeMinutes,
       savedAt: Date.now(),
       tags: uniqueTags,
+    });
+
+    // Insert content separately (reduces bandwidth for list queries)
+    await ctx.db.insert("articleContent", {
+      articleId: articleId,
+      content: args.content,
     });
 
     return articleId;
@@ -200,6 +205,7 @@ export const listArticles = query({
 
 /**
  * Get a single article by ID
+ * Joins with articleContent table to return full article with content
  */
 export const getArticle = query({
   args: {
@@ -213,7 +219,7 @@ export const getArticle = query({
     }
     const userId = identity.subject; // Use Auth0 subject as userId
 
-    // Get article
+    // Get article metadata
     const article = await ctx.db.get(args.articleId);
     if (!article) {
       throw new Error("Article not found");
@@ -224,12 +230,24 @@ export const getArticle = query({
       throw new Error("Unauthorized");
     }
 
-    return article;
+    // Get content from separate table (new articles)
+    const contentDoc = await ctx.db
+      .query("articleContent")
+      .withIndex("by_article", (q) => q.eq("articleId", args.articleId))
+      .first();
+
+    // Return article with content joined
+    // Fallback to legacy content field for old articles during migration
+    return {
+      ...article,
+      content: contentDoc?.content ?? article.content ?? "",
+    };
   },
 });
 
 /**
  * Delete an article
+ * Also deletes associated content from articleContent table
  */
 export const deleteArticle = mutation({
   args: {
@@ -259,7 +277,16 @@ export const deleteArticle = mutation({
       await ctx.runMutation(api.tags.decrementTagCount, { tagName: tag });
     }
 
-    // Delete article
+    // Delete content from separate table first
+    const contentDoc = await ctx.db
+      .query("articleContent")
+      .withIndex("by_article", (q) => q.eq("articleId", args.articleId))
+      .first();
+    if (contentDoc) {
+      await ctx.db.delete(contentDoc._id);
+    }
+
+    // Delete article metadata
     await ctx.db.delete(args.articleId);
 
     return { success: true };
@@ -472,10 +499,10 @@ export const saveArticleToDBInternal = internalMutation({
     tags: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    // Check if article already exists for this user
+    // Check if article already exists for this user (using efficient index lookup)
     const existing = await ctx.db
       .query("articles")
-      .filter((q) => q.and(q.eq(q.field("userId"), args.userId), q.eq(q.field("url"), args.url)))
+      .withIndex("by_user_url", (q) => q.eq("userId", args.userId).eq("url", args.url))
       .first();
 
     if (existing) {
@@ -498,12 +525,11 @@ export const saveArticleToDBInternal = internalMutation({
       new Map(normalizedTags.map((tag) => [tag.toLowerCase(), tag])).values()
     );
 
-    // Insert article
+    // Insert article metadata (without content)
     const articleId = await ctx.db.insert("articles", {
       userId: args.userId,
       url: args.url,
       title: args.title,
-      content: args.content,
       excerpt: args.excerpt,
       imageUrl: args.imageUrl,
       author: args.author,
@@ -511,6 +537,12 @@ export const saveArticleToDBInternal = internalMutation({
       readingTimeMinutes: args.readingTimeMinutes,
       savedAt: Date.now(),
       tags: uniqueTags,
+    });
+
+    // Insert content separately (reduces bandwidth for list queries)
+    await ctx.db.insert("articleContent", {
+      articleId: articleId,
+      content: args.content,
     });
 
     return articleId;
