@@ -2,6 +2,32 @@
 
 > **Context**: This app is for personal use (1-2 users only). Despite low user count, you're hitting 1GB/month due to a specific issue with how article content is being read.
 
+---
+
+## Live Observations (Nov 30, 2024)
+
+Analyzed Convex logs during a period with **zero user activity**. The hourly feed cron job shows the exact problem:
+
+```
+12:00:01  A  fetchAllFeeds           log  Fetching 1 feeds...
+12:00:09  Q  checkArticleExists      success  11ms
+12:00:09  Q  checkArticleExists      success  10ms
+12:00:09  Q  checkArticleExists      success  11ms
+... (20+ more calls in rapid succession)
+12:00:10  Q  checkArticleExists      success  11ms
+12:00:10  M  updateLastFetched       success  6ms
+12:00:10  A  fetchSingleFeed         log  saved 0 new articles (skipped 0 older)
+12:00:10  A  fetchAllFeeds           log  Feed fetch complete
+```
+
+**Key findings:**
+- **~20 `checkArticleExists` calls per feed** - Each checking if a URL already exists
+- **Each call takes 10-13ms** - Indicating a scan, not an index lookup
+- **No user activity required** - This runs every hour automatically
+- **1 feed = 20 calls** - With multiple feeds, this multiplies quickly
+
+This confirms the cron job is the primary source of background bandwidth consumption.
+
 ## What is Database Bandwidth?
 
 In Convex, **database bandwidth** measures the amount of data transferred between your Convex functions and the underlying database. This includes:
@@ -112,14 +138,13 @@ This is a direct lookup—no scanning, no reading content of other articles.
 
 ---
 
-## Recommended Actions (Updated)
+## Recommended Actions
 
 | Priority | Action | Effort | Impact |
 |----------|--------|--------|--------|
 | **P0** | Add `by_user_url` index | 5 min | Stops content scanning in feed checks |
 | **P1** | Split content to separate table | 1-2 hours | **98% bandwidth reduction** |
-| **P2** | Delete `debugListAllHighlights` | 2 min | Security hygiene |
-| **P3** | Change cron to 8 hours | 1 min | Minor savings |
+| **P2** | Reduce cron frequency to every 4-8 hours | 1 min | Reduces background calls by 75-87% |
 
 ### Quick Win: The Index (Do This Now)
 
@@ -175,7 +200,8 @@ But Convex (like most databases) reads entire documents. The exclusion happens i
 |----------|--------|-------------|-------------|
 | `listArticles` (150 articles) | 15MB | 15MB | 300KB |
 | `checkArticleExists` (per call) | ~500KB | ~2KB | ~2KB |
-| Feed cron (20 items × 10 feeds × hourly) | ~100MB/day | ~400KB/day | ~400KB/day |
+| Feed cron (20 items × 1 feed × hourly) | ~10MB/day | ~40KB/day | ~40KB/day |
+| Feed cron (with 4hr interval) | ~2.5MB/day | ~10KB/day | ~10KB/day |
 | **Monthly total** | 1GB+ | ~500MB | **~50MB** |
 
 ---
@@ -186,5 +212,16 @@ But Convex (like most databases) reads entire documents. The exclusion happens i
 
 1. **Quick fix**: Add `by_user_url` index to stop content scanning in feed checks
 2. **Real fix**: Split content into a separate table so `listArticles` doesn't read it
+3. **Bonus**: Reduce cron frequency since you only have 1 feed and don't need hourly checks
 
 The architecture pattern of "store large blobs separately" is common in document databases for exactly this reason.
+
+---
+
+## Next Steps
+
+When ready to implement:
+
+1. **Start with P0** - Add the index and update `checkArticleExists`. Deploy and monitor for a few days.
+2. **Then P1** - Split the content table. This is the big win but requires a data migration.
+3. **Optionally P2** - Adjust cron frequency based on how timely you need feed updates.
